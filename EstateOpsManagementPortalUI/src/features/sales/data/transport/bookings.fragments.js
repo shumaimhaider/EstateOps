@@ -1,0 +1,35 @@
+export const BOOKING_FIELDS = /* GraphQL */ `
+  fragment BookingFields on Booking {
+    id
+    tenant_id
+    unit_id
+    unit_no
+    unit_kind
+    project_id
+    project_name
+    customer_id
+    buyer_name
+    buyer_phone
+    buyer_email
+    status
+    plan_name
+    total_price
+    currency
+    installments_total
+    installments_paid
+    installments_due
+    installments_overdue
+    installments_upcoming
+    received_amount
+    pending_amount
+    overdue_amount
+    fine_amount
+    next_due_date
+    escalated
+    booked_at
+    allowed_actions
+    created_at
+    updated_at
+    created_by
+  }
+`;

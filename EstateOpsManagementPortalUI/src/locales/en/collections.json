@@ -1,0 +1,195 @@
+{
+  "status": {
+    "scheduled": "Scheduled",
+    "due": "Due",
+    "paid": "Paid",
+    "overdue": "Overdue",
+    "waived": "Waived",
+    "rescheduled": "Rescheduled",
+    "cancelled": "Cancelled",
+    "partPaid": "Part paid",
+    "daysLate_one": "{{count}} day late",
+    "daysLate_other": "{{count}} days late"
+  },
+  "kind": {
+    "down_payment": "Down payment",
+    "emi": "EMI {{number}}"
+  },
+  "unitKind": {
+    "plot": "Plot",
+    "flat": "Flat",
+    "villa": "Villa",
+    "shop": "Shop"
+  },
+  "columns": {
+    "invoice": "Invoice",
+    "installment": "Installment",
+    "buyer": "Customer",
+    "unit": "Unit",
+    "dueDate": "Due date",
+    "amount": "Amount",
+    "paid": "Paid",
+    "balance": "Balance",
+    "fine": "Fine",
+    "status": "Status",
+    "receipt": "Receipt",
+    "actions": "Actions",
+    "missed": "Missed",
+    "overdueAmount": "Overdue amount",
+    "oldestDue": "Oldest unpaid",
+    "notice": "Notice letter"
+  },
+  "filters": {
+    "search": "Search",
+    "searchPlaceholder": "Invoice, customer, unit or reference",
+    "status": "Status",
+    "project": "Project",
+    "unitKind": "Unit type",
+    "dueFrom": "Due from",
+    "dueTo": "Due to",
+    "all": "All"
+  },
+  "register": {
+    "title": "Scheduled invoices",
+    "subtitle": "Every installment invoice across all bookings. Record payments on a customer's behalf.",
+    "tableLabel": "Scheduled invoices",
+    "count_one": "{{count}} invoice loaded",
+    "count_other": "{{count}} invoices loaded",
+    "emptyTitle": "No invoices match these filters",
+    "emptyBody": "Clear the filters to see the full register.",
+    "loadError": "Could not load invoices"
+  },
+  "pay": {
+    "action": "Record payment",
+    "title": "Record payment",
+    "summary": "Taking payment from {{buyer}} for invoice {{invoice}} (unit {{unit}}). Outstanding balance: {{balance}}.",
+    "invoice": "Invoice",
+    "invoiceOption": "{{invoice}} \u00b7 unit {{unit}} \u00b7 balance {{balance}}",
+    "amount": "Amount ({{currency}})",
+    "amountHint": "Defaults to the full balance. Enter less for a part payment.",
+    "method": "Method",
+    "reference": "Payment reference (optional)",
+    "methods": {
+      "cash": "Cash",
+      "bank_transfer": "Bank transfer",
+      "online": "Online",
+      "cheque": "Cheque"
+    },
+    "submit": "Record payment",
+    "cancel": "Cancel",
+    "success": "Payment recorded for {{invoice}}",
+    "failed": "Could not record the payment: {{message}}",
+    "errors": {
+      "invoice": "Choose an invoice",
+      "amount": "Enter an amount up to the outstanding balance",
+      "reference": "Reference is too long"
+    },
+    "actionShort": "Pay"
+  },
+  "tiles": {
+    "saleValue": "Total sale value",
+    "received": "Received",
+    "pending": "Pending",
+    "overdue": "Overdue",
+    "dueThisMonth": "Due this month",
+    "scheduled": "Installments scheduled",
+    "scheduledHint": "{{paid}} paid \u00b7 {{upcoming}} upcoming",
+    "bookings_one": "{{count}} booking",
+    "bookings_other": "{{count}} bookings",
+    "installmentsPaid_one": "{{count}} installment paid",
+    "installmentsPaid_other": "{{count}} installments paid",
+    "installmentsLeft_one": "{{count}} installment left",
+    "installmentsLeft_other": "{{count}} installments left",
+    "installmentsOverdue_one": "{{count}} installment overdue",
+    "installmentsOverdue_other": "{{count}} installments overdue"
+  },
+  "charts": {
+    "month": "Month",
+    "collected": "Collected",
+    "due": "Due",
+    "daysLate": "Days late",
+    "installments": "Installments",
+    "overdueAmount": "Overdue amount",
+    "bucket": "{{bucket}} days",
+    "count_one": "{{count}} installment",
+    "count_other": "{{count}} installments",
+    "trend": {
+      "title": "Collected vs due by month",
+      "description": "Amount collected against the installments falling due in each month."
+    },
+    "ageing": {
+      "title": "Overdue ageing",
+      "description": "Overdue balance by how many days late."
+    }
+  },
+  "escalations": {
+    "title": "Escalated cases",
+    "subtitle": "Bookings with {{count}} or more missed installments, worst first.",
+    "tableLabel": "Escalated cases",
+    "missed_one": "{{count}} missed",
+    "missed_other": "{{count}} missed",
+    "noticeSent": "Notice sent",
+    "noNotice": "No notice yet",
+    "sendNotice": "Send notice",
+    "noticeDone": "Notice letter sent to {{buyer}}",
+    "noticeFailed": "Could not send the notice: {{message}}",
+    "count_one": "{{count}} escalated case",
+    "count_other": "{{count}} escalated cases",
+    "emptyTitle": "No escalated cases",
+    "emptyBody": "Every buyer is within the missed-installment limit.",
+    "loadError": "Could not load escalated cases",
+    "viewAll": "View all",
+    "subtitleShort": "Bookings with several missed installments.",
+    "subtitle_one": "Bookings with {{count}} or more missed installments, worst first.",
+    "subtitle_other": "Bookings with {{count}} or more missed installments, worst first.",
+    "confirmTitle": "Send notice letter",
+    "confirmMessage": "Send a notice letter to {{buyer}} about {{count}} missed installments ({{amount}} overdue)? The letter is recorded against the booking."
+  },
+  "unitKindPlural": {
+    "plot": "Plots",
+    "flat": "Flats",
+    "villa": "Villas",
+    "shop": "Shops"
+  },
+  "unitStatus": {
+    "available": "unsold",
+    "held": "held",
+    "booked": "booked",
+    "sold": "sold",
+    "blocked": "blocked"
+  },
+  "inventoryByType": {
+    "title": "Inventory by type",
+    "description": "Sold and unsold units for each type. Select a count to open those units.",
+    "total_one": "{{count}} unit",
+    "total_other": "{{count}} units",
+    "barLabel": "{{kind}}: {{sold}} sold, {{unsold}} unsold"
+  },
+  "projectBreakdown": {
+    "title": "Collections by project",
+    "description": "Sale value, money received and still pending for each project.",
+    "project": "Project",
+    "sold": "Sold / total",
+    "saleValue": "Sale value",
+    "received": "Received",
+    "pending": "Pending",
+    "overdue": "Overdue",
+    "collected": "Collected",
+    "collectedLabel": "Share of sale value collected for {{name}}"
+  },
+  "installmentCounts": {
+    "title": "Installments scheduled",
+    "total": "Scheduled in total",
+    "paid": "Paid",
+    "due": "Due now",
+    "overdue": "Overdue",
+    "upcoming": "Upcoming"
+  },
+  "stats": {
+    "title": "Stats",
+    "subtitle": "Collections, installments and escalated cases for all projects or one project.",
+    "tabs": "Stats sections",
+    "overview": "Collection stats",
+    "escalated": "Escalated cases"
+  }
+}

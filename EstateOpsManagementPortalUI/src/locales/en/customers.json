@@ -1,0 +1,53 @@
+{
+  "title": "Customers",
+  "subtitle": "Everyone who has booked a property. Open a customer to see what they own, then a property for its invoices.",
+  "tableLabel": "Customers",
+  "count_one": "{{count}} customer loaded",
+  "count_other": "{{count}} customers loaded",
+  "unitsCount_one": "{{count}} unit",
+  "unitsCount_other": "{{count}} units",
+  "escalated_one": "{{count}} escalated case",
+  "escalated_other": "{{count}} escalated cases",
+  "emptyTitle": "No customers match your search",
+  "emptyBody": "Try another name, phone number or unit.",
+  "loadError": "Could not load customers",
+  "columns": {
+    "customer": "Customer",
+    "contact": "Contact",
+    "units": "Units",
+    "totalValue": "Total value",
+    "received": "Received",
+    "pending": "Pending",
+    "overdue": "Overdue",
+    "flags": "Flags"
+  },
+  "filters": {
+    "search": "Search",
+    "searchPlaceholder": "Name, phone, email or unit",
+    "overdueOnly": "With overdue payments"
+  },
+  "profile": {
+    "phone": "Phone",
+    "email": "Email",
+    "idNumber": "ID number",
+    "city": "City",
+    "language": "Language",
+    "totalValue": "Total value",
+    "received": "Received",
+    "pending": "Pending",
+    "overdue": "Overdue"
+  },
+  "detail": {
+    "back": "Back to customers",
+    "takePayment": "Take payment",
+    "bookings": "Units & bookings",
+    "invoices": "Scheduled invoices",
+    "invoicesHint": "All installments across this customer's units. Record a payment on their behalf.",
+    "nothingToPay": "No unpaid invoices",
+    "notFound": "Customer not found",
+    "properties": "Properties",
+    "propertiesOwned_one": "Owns {{count}} property",
+    "propertiesOwned_other": "Owns {{count}} properties",
+    "propertiesHint": "Select a property to open its invoices and EMI schedule."
+  }
+}

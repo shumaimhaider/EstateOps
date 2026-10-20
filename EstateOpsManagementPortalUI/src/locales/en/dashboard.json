@@ -1,0 +1,14 @@
+{
+  "title": "Welcome back, {{name}}",
+  "subtitle": "Sales, collections and inventory at a glance. Select any number to open the list behind it.",
+  "projects": "Projects",
+  "units": {
+    "total": "Total units",
+    "unsold": "Unsold units",
+    "unsoldHint": "Available for sale",
+    "booked": "Booked",
+    "bookedHint": "Sold on EMI, still paying",
+    "sold": "Sold",
+    "soldHint": "Fully paid"
+  }
+}

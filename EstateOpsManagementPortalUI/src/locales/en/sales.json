@@ -1,0 +1,72 @@
+{
+  "title": "Sales",
+  "subtitle": "Every property sold, with its EMI position: received, pending and installments scheduled.",
+  "tableLabel": "Bookings",
+  "count_one": "{{count}} booking loaded",
+  "count_other": "{{count}} bookings loaded",
+  "emptyTitle": "No bookings match these filters",
+  "emptyBody": "Clear the filters to see every booking.",
+  "loadError": "Could not load bookings",
+  "installmentsOf": "{{paid}} of {{total}} paid",
+  "installmentProgress": "Installments paid for unit {{unit}}",
+  "escalated": "Escalated",
+  "unitKind": {
+    "plot": "Plot",
+    "flat": "Flat",
+    "villa": "Villa",
+    "shop": "Shop"
+  },
+  "status": {
+    "requested": "Requested",
+    "in_review": "In review",
+    "confirmed": "Confirmed",
+    "active": "Active",
+    "completed": "Completed",
+    "cancelled": "Cancelled"
+  },
+  "columns": {
+    "unit": "Unit",
+    "customer": "Customer",
+    "plan": "Plan",
+    "totalPrice": "Sale price",
+    "received": "Received",
+    "pending": "Pending",
+    "overdue": "Overdue",
+    "installments": "Installments",
+    "nextDue": "Next due",
+    "status": "Status",
+    "invoices": "Invoices"
+  },
+  "filters": {
+    "search": "Search",
+    "searchPlaceholder": "Unit, customer or project",
+    "project": "Project",
+    "kind": "Unit type",
+    "status": "Status",
+    "escalatedOnly": "Escalated only",
+    "all": "All"
+  },
+  "detail": {
+    "title": "Property {{unitNo}}",
+    "back": "Back to sales",
+    "customer": "Customer",
+    "unit": "Unit",
+    "plan": "Payment plan",
+    "bookedOn": "Booked on",
+    "totalPrice": "Sale price",
+    "received": "Received",
+    "receivedPercent": "{{percent}}% of sale price",
+    "pending": "Pending",
+    "overdue": "Overdue",
+    "installments": "Installments scheduled",
+    "installmentBreakdown": "{{paid}} paid \u00b7 {{due}} due now \u00b7 {{upcoming}} upcoming",
+    "progress": "Payment progress",
+    "schedule": "Invoices and EMI schedule",
+    "scheduleHint": "Every invoice for this property, in order.",
+    "scheduleCount_one": "{{count}} invoice in this schedule",
+    "scheduleCount_other": "{{count}} invoices in this schedule",
+    "backToCustomer": "Back to {{name}}"
+  },
+  "viewInvoices": "View invoices",
+  "viewInvoicesFor": "View invoices for {{unit}}"
+}

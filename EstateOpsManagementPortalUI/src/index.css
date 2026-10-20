@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens. RGB triplets so Tailwind can apply opacity. The tenant theme overrides
+ * these variables at runtime (src/shared/lib/theme.js); nothing is rebuilt. */
+:root {
+  --color-canvas: 244 246 251;
+  --color-surface: 255 255 255;
+  --color-surface-muted: 241 243 249;
+  --color-border: 226 230 240;
+  --color-content: 15 23 42;
+  --color-content-muted: 100 116 139;
+  --color-primary: 79 70 229;
+  --color-primary-soft: 238 238 253;
+  --color-primary-contrast: 255 255 255;
+  --color-danger: 220 38 38;
+  --color-focus: 99 102 241;
+  --color-sidebar: 15 23 42;
+  --color-sidebar-content: 203 213 225;
+  --color-sidebar-active: 51 65 99;
+
+  --tone-success-bg: 209 250 229;
+  --tone-success-fg: 4 120 87;
+  --tone-warning-bg: 254 243 199;
+  --tone-warning-fg: 180 83 9;
+  --tone-info-bg: 219 234 254;
+  --tone-info-fg: 29 78 216;
+  --tone-danger-bg: 254 226 226;
+  --tone-danger-fg: 185 28 28;
+  --tone-neutral-bg: 226 232 240;
+  --tone-neutral-fg: 51 65 85;
+  --tone-accent-bg: 237 233 254;
+  --tone-accent-fg: 109 40 217;
+
+  /* Data-viz slots 1 and 2 of the validated categorical palette. */
+  --chart-1: 42 120 214;
+  --chart-2: 235 104 52;
+  --chart-grid: 226 230 240;
+
+  --radius: 0.875rem;
+  --shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px rgb(15 23 42 / 0.06);
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --z-dialog: 50;
+  --z-toast: 60;
+}
+
+body {
+  @apply bg-canvas font-sans text-content antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--color-focus));
+  outline-offset: 2px;
+}
+
+dialog {
+  @apply m-auto;
+}
+
+dialog::backdrop {
+  background: rgb(15 23 42 / 0.5);
+  backdrop-filter: blur(2px);
+}

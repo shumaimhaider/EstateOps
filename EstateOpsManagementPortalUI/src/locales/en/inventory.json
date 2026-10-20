@@ -1,0 +1,156 @@
+{
+  "units": {
+    "title": "Units",
+    "subtitle": "Every unit across projects, with live status.",
+    "new": "New unit",
+    "count_one": "{{count}} unit loaded",
+    "count_other": "{{count}} units loaded",
+    "selected": "{{count}} selected",
+    "emptyTitle": "No units match these filters",
+    "emptyBody": "Clear the filters or create a new unit.",
+    "loadError": "Could not load units",
+    "tableLabel": "Units",
+    "viewUnit": "View unit {{unitNo}}",
+    "selectRow": "Select unit {{unitNo}}",
+    "selectAll": "Select all loaded units"
+  },
+  "filters": {
+    "search": "Search",
+    "searchPlaceholder": "Unit, project or block",
+    "status": "Status",
+    "kind": "Kind",
+    "project": "Project",
+    "all": "All",
+    "columns": "Columns"
+  },
+  "columns": {
+    "unitNo": "Unit",
+    "project": "Project",
+    "location": "Block / floor",
+    "kind": "Kind",
+    "area": "Area",
+    "bedrooms": "Beds",
+    "status": "Status",
+    "price": "List price",
+    "actions": "Actions"
+  },
+  "sort": {
+    "by": "Sort by {{column}}",
+    "asc": "ascending",
+    "desc": "descending"
+  },
+  "status": {
+    "available": "Available",
+    "held": "Held",
+    "booked": "Booked",
+    "sold": "Sold",
+    "blocked": "Blocked"
+  },
+  "kind": {
+    "plot": "Plot",
+    "flat": "Flat",
+    "villa": "Villa",
+    "shop": "Shop"
+  },
+  "actions": {
+    "block": "Block",
+    "unblock": "Unblock",
+    "blockConfirm": "Block unit {{unitNo}}? It will not be sellable until unblocked.",
+    "unblockConfirm": "Unblock unit {{unitNo}}? It becomes available for sale.",
+    "doneBlock": "Unit {{unitNo}} blocked",
+    "doneUnblock": "Unit {{unitNo}} unblocked",
+    "failed": "Action failed: {{message}}"
+  },
+  "form": {
+    "title": "New unit",
+    "project": "Project",
+    "projectPlaceholder": "Choose a project",
+    "unitNo": "Unit number",
+    "kind": "Kind",
+    "area": "Area",
+    "areaUnit": "Area unit",
+    "bedrooms": "Bedrooms",
+    "facing": "Facing",
+    "view": "View",
+    "corner": "Corner unit",
+    "parking": "Parking spaces",
+    "price": "List price ({{currency}})",
+    "priceHint": "Whole amount, e.g. 12,500,000",
+    "submit": "Create unit",
+    "created": "Unit {{unitNo}} created",
+    "formError": "Could not create the unit: {{message}}",
+    "errors": {
+      "project": "Choose a project",
+      "unitNo": "Enter a unit number",
+      "area": "Enter an area greater than zero",
+      "bedrooms": "Enter a whole number",
+      "parking": "Enter a whole number",
+      "price": "Enter a valid amount"
+    }
+  },
+  "detail": {
+    "title": "Unit {{unitNo}}",
+    "back": "Back to units",
+    "overview": "Overview",
+    "history": "Status history",
+    "activity": "Activity",
+    "historyEntry": "{{status}} by {{actor}}",
+    "system": "System",
+    "fields": {
+      "project": "Project",
+      "location": "Block / floor",
+      "kind": "Kind",
+      "area": "Area",
+      "bedrooms": "Bedrooms",
+      "facing": "Facing",
+      "view": "View",
+      "corner": "Corner",
+      "parking": "Parking",
+      "price": "List price",
+      "updated": "Last updated",
+      "sale": "Sale"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "notFound": "Unit not found",
+    "pictures": "Pictures",
+    "viewSale": "View sale & EMI schedule",
+    "saleAndEmi": "Sale & EMI schedule"
+  },
+  "projectKind": {
+    "plot_society": "Plot society",
+    "tower": "Tower",
+    "mixed": "Mixed use"
+  },
+  "projects": {
+    "title": "Projects",
+    "subtitle": "Every project with live availability. Open one for its site map.",
+    "unitsTotal_one": "{{count}} unit",
+    "unitsTotal_other": "{{count}} units",
+    "sellThrough": "Sold or booked",
+    "sellThroughLabel": "Sold or booked share of {{name}}",
+    "openMap": "Open site map",
+    "viewUnits": "Units",
+    "loadError": "Could not load projects",
+    "emptyTitle": "No projects yet",
+    "notFound": "Project not found",
+    "counts": {
+      "available": "Unsold",
+      "held": "Held",
+      "booked": "Booked",
+      "sold": "Sold",
+      "blocked": "Blocked"
+    }
+  },
+  "map": {
+    "legend": "Unit status",
+    "label": "Site plan of {{name}}",
+    "unitLabel": "Unit {{unitNo}}, {{status}}. Open details.",
+    "title": "Site map",
+    "hint": "Select a unit to open it. Colours follow live status.",
+    "tab": "Site map",
+    "unitsTab": "Units",
+    "tabs": "Project sections",
+    "back": "Back to projects"
+  }
+}

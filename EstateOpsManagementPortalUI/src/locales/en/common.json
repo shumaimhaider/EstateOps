@@ -1,0 +1,67 @@
+{
+  "app": {
+    "name": "EstateOps Admin",
+    "skipToContent": "Skip to main content"
+  },
+  "nav": {
+    "main": "Main navigation",
+    "dashboard": "Dashboard",
+    "stats": "Collection stats",
+    "escalations": "Escalated cases",
+    "projects": "Projects",
+    "units": "Units",
+    "sales": "Sales",
+    "customers": "Customers",
+    "groupOverview": "Overview",
+    "groupInsights": "Stats",
+    "groupInventory": "Inventory",
+    "groupSales": "Sales & collections",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "actions": {
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "close": "Close",
+    "loadMore": "Load more",
+    "back": "Back"
+  },
+  "states": {
+    "loading": "Loading",
+    "errorTitle": "Something went wrong",
+    "errorGeneric": "We could not load this data. Try again.",
+    "contractError": "The server sent data in an unexpected format. This has been logged.",
+    "networkError": "Network error. Check your connection and retry.",
+    "emptyTitle": "Nothing here yet",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "The page you are looking for does not exist.",
+    "goHome": "Go to dashboard"
+  },
+  "areaUnits": {
+    "marla": "marla",
+    "kanal": "kanal",
+    "sq_ft": "sq ft",
+    "sq_yd": "sq yd",
+    "sq_m": "sq m"
+  },
+  "validation": {
+    "required": "This field is required"
+  },
+  "chart": {
+    "viewTable": "View as table",
+    "table": "table"
+  },
+  "table": {
+    "columns": "Columns",
+    "selectAll": "Select all loaded rows",
+    "selectRow": "Select row",
+    "selected_one": "{{count}} selected",
+    "selected_other": "{{count}} selected"
+  },
+  "scope": {
+    "label": "Project scope",
+    "all": "All projects"
+  }
+}

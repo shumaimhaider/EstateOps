@@ -1,0 +1,30 @@
+export const INSTALLMENT_FIELDS = /* GraphQL */ `
+  fragment InstallmentFields on Installment {
+    id
+    tenant_id
+    booking_id
+    invoice_no
+    seq
+    kind
+    unit_no
+    unit_kind
+    project_name
+    buyer_name
+    issued_on
+    due_date
+    amount
+    paid_amount
+    balance
+    fine_amount
+    currency
+    status
+    days_late
+    paid_at
+    method
+    payment_reference
+    receipt_no
+    allowed_actions
+    created_at
+    updated_at
+  }
+`;
