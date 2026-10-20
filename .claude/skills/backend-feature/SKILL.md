@@ -1,24 +1,40 @@
 ---
-name: backend-feature
-description: Use when adding a new feature, endpoint, or business rule to a backend service (e.g. a new booking flow, a new payment plan type, a new commission rule). Walks through where things go across service, packages, migration, and events — not for test-only changes, use backend-tests for that.
-paths:
-  - "Backend/**"
+name: backend
+description: Use when adding or changing back-end code in EstateOps (use cases, repositories, routes, controllers, migrations, API tests). Follows Clean Architecture
 ---
 
-# Adding a backend feature
+# Back-end skill
 
-1. **Find the owning service.** One of `api-gateway`, `auth-service`, `inventory-service`, `booking-service`, `payment-service`, `commission-service`, `document-service`, `notification-service`, `reporting-service`. If the feature touches two services, split it into one change per service connected by an event, not a direct call.
+Read rules/backend.md first. Follow it exactly.
 
-2. **Shared types first.** If the feature introduces a new DTO, event payload, or enum, add it to `packages/types` before writing the service code that uses it. Other services must consume the same shape, not a local copy.
+## When to use
+Any task touching src/<feature>/domain, application, infrastructure or interfaces, the database schema, or API endpoints.
 
-3. **Migration.** Add the migration via the helper in `packages/database`. Never hand-edit a column type for money/date fields — follow the backend rule's minor-unit / date-only convention.
+## Adding a feature or endpoint
+1. Domain: add or update the entity and its invariants. No framework imports.
+2. Application: write one use case per file with plain input and output objects. Define any repository interface it needs.
 
-4. **Guard the endpoint.** Add the permission decorator from `packages/auth`. Decide 401 vs 403 deliberately.
+3. Infrastructure: implement the repository, return domain entities, add a migration if the schema changes.
 
-5. **Side effects → events, not calls.** If the feature should notify another service (e.g. booking confirmed → notification-service), publish an event via `packages/messaging` using a name/payload already defined in `packages/types`, don't call the other service's HTTP endpoint directly.
+4. Interfaces: add the route, validation schema and controller. The controller only calls the use case and maps the result or error.
 
-6. **Idempotency.** If the endpoint has external-facing side effects (charges, payouts, sends), accept and honor an idempotency key per the backend rule.
+5. Wire the new pieces in the composition root (src/main/).
 
-7. **Tests ship with the feature**, not after. At minimum: tenant isolation (cross-tenant access is rejected), 401/403 paths, idempotent retry behavior, and money/date edge cases (zero, negative, rounding, month-end, leap year) if relevant. See `backend-testing.md` for the full checklist and coverage targets.
+6. Add tests: unit tests for domain and use case with in-memory fakes, Supertest test for the endpoint.
 
-8. **Reporting impact.** If the feature changes collections/commission numbers, check whether `reporting-service` needs a corresponding update — it reads events, not other services' DBs.
+## Hard rules
+- Dependencies point inward only. Never import an outer layer from an inner one.
+- No req, res, ORM models or SQL inside use cases or domain.
+- Validate all input at the edge. Map errors to HTTP codes in one place.
+- Never use console.log or commit secrets. Config only through the config module.
+
+DTO and docs/api-contract.md, and nothing else.
+- Response DTOs list allowed fields explicitly so new entity fields are never exposed by accident.
+- Validate all input at the edge. Map errors to HTTP codes in one place.
+- Never use console.log or commit secrets. Config only through the config module.
+
+
+## Before finishing
+- Run lint, format and the full test suite and fix failures.
+- Check that new imports respect the layer boundaries.
+- Summarize what changed, including any migration.
