@@ -11,6 +11,9 @@ export const QUERY_ROOTS = Object.freeze({
   invoices: ['invoices'],
   escalations: ['escalations'],
   stats: ['stats'],
+  fineRules: ['fine-rules'],
+  permissions: ['permissions'],
+  contracts: ['contracts'],
 });
 
 /** Everything a money movement can change. */

@@ -13,6 +13,8 @@ export const INSTALLMENT_FIELDS = /* GraphQL */ `
     issued_on
     due_date
     amount
+    original_amount
+    adjustment_reason
     paid_amount
     balance
     fine_amount
@@ -21,6 +23,8 @@ export const INSTALLMENT_FIELDS = /* GraphQL */ `
     days_late
     paid_at
     method
+    payment_source
+    received_on
     payment_reference
     receipt_no
     allowed_actions

@@ -6,6 +6,8 @@ import {
   useUnitQuery,
 } from '@/features/inventory/index.js';
 import { useParams } from 'react-router-dom';
+import { Can } from '@/features/auth/index.js';
+import { FineRuleCard } from '@/features/fines/index.js';
 import { getErrorInfo } from '@/shared/lib/errors.js';
 import EmptyState from '@/shared/ui/EmptyState.jsx';
 import ErrorState from '@/shared/ui/ErrorState.jsx';
@@ -46,6 +48,9 @@ export default function UnitDetailPage() {
         }
       />
       <UnitDetailPanel unit={unit} />
+      <Can perm="fines.view">
+        <FineRuleCard scope="unit" scopeId={unit.id} />
+      </Can>
       {unit.bookingId && (
         <section aria-labelledby="unit-sale">
           <h2 id="unit-sale" className="mb-4 text-xl font-bold">

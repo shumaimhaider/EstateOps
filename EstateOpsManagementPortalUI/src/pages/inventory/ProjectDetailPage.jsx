@@ -1,6 +1,8 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Rows3 } from 'lucide-react';
+import { Can } from '@/features/auth/index.js';
+import { FineRuleCategories } from '@/features/fines/index.js';
 import { ProjectMap, useProjectMapQuery, useProjectQuery } from '@/features/inventory/index.js';
 import ErrorState from '@/shared/ui/ErrorState.jsx';
 import PageHeader from '@/shared/ui/PageHeader.jsx';
@@ -37,6 +39,11 @@ export default function ProjectDetailPage() {
           </Link>
         }
       />
+      <Can perm="fines.view">
+        <div className="mb-6">
+          <FineRuleCategories scope="project" scopeId={projectId} />
+        </div>
+      </Can>
       {map.isPending && <Skeleton rows={8} />}
       {map.isError && <ErrorState error={map.error} onRetry={() => map.refetch()} />}
       {map.isSuccess && (

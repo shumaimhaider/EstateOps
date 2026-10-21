@@ -3,7 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Building2, Menu, X } from 'lucide-react';
-import { UserMenu, useCurrentUser } from '@/features/auth/index.js';
+import { UserMenu, useCurrentUser, usePermissions } from '@/features/auth/index.js';
 import { useCollectionsStatsQuery } from '@/features/collections/index.js';
 import { reportError } from '@/shared/lib/errorReporter.js';
 import Skeleton from '@/shared/ui/Skeleton.jsx';
@@ -17,9 +17,15 @@ const LINK =
 export default function AppShell() {
   const { t } = useTranslation();
   const user = useCurrentUser();
+  const { has } = usePermissions();
   const stats = useCollectionsStatsQuery({});
   const [open, setOpen] = useState(false);
   const badges = { escalated: stats.data?.escalatedCount };
+  // Only the modules this role may open appear in the menu.
+  const groups = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => has(i.perm)),
+  })).filter((g) => g.items.length > 0);
 
   return (
     <div className="min-h-screen md:grid md:grid-cols-[17rem_1fr]">
@@ -41,7 +47,7 @@ export default function AppShell() {
           {t('app.name')}
         </p>
         <nav aria-label={t('nav.main')} className="flex flex-col gap-5">
-          {NAV_GROUPS.map((group) => (
+          {groups.map((group) => (
             <div key={group.labelKey}>
               <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-widest text-sidebar-content/60">
                 {t(group.labelKey)}

@@ -61,16 +61,22 @@ export const MACHINES = {
     cancelled: {},
   },
   document: {
-    draft: { send: t('sent'), void: t('voided') },
+    draft: { send: t('sent'), revise: t('voided'), void: t('voided') },
     sent: {
       view: t('viewed', true),
       sign: t('signed', true),
       decline: t('declined', true),
+      revise: t('voided'),
       void: t('voided'),
     },
-    viewed: { sign: t('signed', true), decline: t('declined', true), void: t('voided') },
-    signed: {},
-    declined: { void: t('voided') },
+    viewed: {
+      sign: t('signed', true),
+      decline: t('declined', true),
+      revise: t('voided'),
+      void: t('voided'),
+    },
+    signed: { void: t('voided') },
+    declined: { revise: t('voided'), void: t('voided') },
     voided: {},
   },
   bank_proof: {
@@ -153,14 +159,24 @@ export function transition(machine, state, action) {
   return next.to;
 }
 
+/** Permission a staff action needs on top of the state machine. Unlisted actions are open. */
+const ACTION_PERMISSIONS = {
+  'document.send': 'contracts.manage',
+  'document.revise': 'contracts.manage',
+  'document.void': 'contracts.manage',
+};
+
 /**
- * Actions staff may perform on a record right now (system transitions excluded).
- * Permission filtering is layered on by the handlers once roles exist (slice 2).
+ * Actions staff may perform on a record right now: system transitions are excluded and so is
+ * anything the user's role lacks. A user without a permission list (tests) is not filtered.
  */
-// eslint-disable-next-line no-unused-vars
 export function allowedActions(machine, record, user) {
   const actions = MACHINES[machine]?.[record.status] ?? {};
   return Object.entries(actions)
     .filter(([, def]) => !def.system)
-    .map(([name]) => name);
+    .map(([name]) => name)
+    .filter((name) => {
+      const needed = ACTION_PERMISSIONS[`${machine}.${name}`];
+      return !needed || !user?.permissions || user.permissions.includes(needed);
+    });
 }

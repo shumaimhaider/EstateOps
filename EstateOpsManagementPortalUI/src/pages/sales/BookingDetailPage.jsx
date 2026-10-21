@@ -1,5 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Can, usePermission } from '@/features/auth/index.js';
+import { ContractsPanel } from '@/features/contracts/index.js';
 import { useBookingQuery } from '@/features/sales/index.js';
 import PageHeader from '@/shared/ui/PageHeader.jsx';
 import BookingPaymentsPanel from '@/widgets/BookingPaymentsPanel.jsx';
@@ -10,6 +12,7 @@ export default function BookingDetailPage() {
   const { bookingId } = useParams();
   const booking = useBookingQuery(bookingId);
   const owner = booking.data;
+  const canManageContracts = usePermission('contracts.manage');
   return (
     <div>
       <PageHeader
@@ -18,7 +21,12 @@ export default function BookingDetailPage() {
         title={owner ? t('detail.title', { unitNo: owner.unitNo }) : t('title')}
         description={owner ? `${owner.projectName} · ${owner.buyerName}` : undefined}
       />
-      <BookingPaymentsPanel bookingId={bookingId} />
+      <div className="space-y-8">
+        <BookingPaymentsPanel bookingId={bookingId} />
+        <Can perm="contracts.view">
+          <ContractsPanel bookingId={bookingId} canManage={canManageContracts} />
+        </Can>
+      </div>
     </div>
   );
 }

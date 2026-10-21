@@ -1,4 +1,5 @@
 import { MockApiError } from './errors.js';
+import { permissionsFor } from './permissions.js';
 
 /**
  * Resolves the acting tenant and user from the bearer token (`mock.<tenantSlug>.<role>`).
@@ -11,7 +12,16 @@ export function resolveContext(db, authorization) {
   const tenant = db.tenants.find((t) => t.slug === slug);
   const user = tenant && db.users.find((u) => u.tenant_id === tenant.id && u.role === role);
   if (!user) throw new MockApiError(401, 'UNAUTHENTICATED', 'Invalid or expired token');
-  return { tenant, user: { id: user.id, name: user.name, tenantId: tenant.id, role: user.role } };
+  return {
+    tenant,
+    user: {
+      id: user.id,
+      name: user.name,
+      tenantId: tenant.id,
+      role: user.role,
+      permissions: permissionsFor(db, tenant.id, user.role),
+    },
+  };
 }
 
 /** Test/dev helper: an access token for a seeded tenant + role. */

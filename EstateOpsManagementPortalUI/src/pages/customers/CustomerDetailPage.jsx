@@ -1,5 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Can } from '@/features/auth/index.js';
+import { FineRuleCategories } from '@/features/fines/index.js';
 import { CustomerProfile, useCustomerQuery } from '@/features/customers/index.js';
 import { getErrorInfo } from '@/shared/lib/errors.js';
 import EmptyState from '@/shared/ui/EmptyState.jsx';
@@ -26,6 +28,9 @@ export default function CustomerDetailPage() {
     <div className="space-y-8">
       <PageHeader backTo="/customers" backLabel={t('detail.back')} title={query.data.fullName} />
       <CustomerProfile customer={query.data} />
+      <Can perm="fines.view">
+        <FineRuleCategories scope="customer" scopeId={customerId} />
+      </Can>
       <CustomerPaymentsPanel customerId={customerId} />
     </div>
   );

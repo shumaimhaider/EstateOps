@@ -1,5 +1,6 @@
 import { faker } from '@faker-js/faker';
 import { addDays, addMonths, atNoon, daysBetween, today } from '../engine/dates.js';
+import { fineFor, resolveRule } from '../engine/fines.js';
 
 /**
  * Seeds a booking (buyer + plan) and a full installment schedule for every booked or sold unit.
@@ -20,7 +21,6 @@ const PROFILES = [
 ];
 const METHODS = ['bank_transfer', 'cash', 'online', 'cheque'];
 export const GRACE_DAYS = 5;
-const FINE_PERCENT = 2;
 const PHONE_PREFIX = { pk: '+92 3', ae: '+971 5' };
 
 const pad = (n, w = 6) => String(n).padStart(w, '0');
@@ -58,7 +58,7 @@ function settle(row, ctx) {
     if (faker.datatype.boolean({ probability: 0.3 })) {
       const paidDate = addDays(row.due_date, faker.number.int({ min: 6, max: 18 }));
       return daysBetween(paidDate, now) >= 0
-        ? paidOn(paidDate, Math.round((row.amount * FINE_PERCENT) / 100))
+        ? paidOn(paidDate, fineFor(ctx.rule, row.amount))
         : unpaid();
     }
     return paidOn(row.due_date);
@@ -155,13 +155,14 @@ export function seedSales(db, tenant, owner) {
       sold,
       stopAt: faker.number.int({ min: 0, max: 1 }),
       lastElapsedSeq: elapsed.at(-1)?.seq ?? 0,
+      rule: resolveRule(db, tenant.id, {}),
     };
 
     for (const row of rows) {
       counters.invoice += 1;
       const result = { fine_amount: 0, ...settle(row, ctx) };
       if (result.status === 'overdue' && !result.fine_amount) {
-        result.fine_amount = Math.round((row.amount * FINE_PERCENT) / 100);
+        result.fine_amount = fineFor(ctx.rule, row.amount);
       }
       const paid = result.paid_amount > 0;
       if (paid) counters.payment += 1;

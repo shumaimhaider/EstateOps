@@ -1,0 +1,82 @@
+{
+  "title": "Contracts",
+  "subtitle": "The signed sale agreement for this property: upload the paper-signed copy, or send one to be signed through PandaDoc.",
+  "emptyTitle": "No contract yet",
+  "emptyBody": "Create a contract in PandaDoc, or upload the copy the customer signed.",
+  "version": "version {{number}}",
+  "sentAt": "Sent",
+  "signedAt": "Signed",
+  "revisionNote": "Revised because",
+  "actionFailed": "That did not work: {{message}}",
+  "status": {
+    "draft": "Draft",
+    "sent": "Sent to sign",
+    "viewed": "Opened by signer",
+    "signed": "Signed",
+    "declined": "Declined",
+    "voided": "Replaced"
+  },
+  "source": {
+    "upload": "Uploaded PDF {{file}} ({{size}})",
+    "pandadoc": "PandaDoc, signer {{email}}"
+  },
+  "templates": {
+    "sale_agreement": "Sale agreement",
+    "payment_plan_addendum": "Payment plan addendum"
+  },
+  "actions": {
+    "openPandaDoc": "Open in PandaDoc",
+    "send": "Send for signing",
+    "sent": "Contract sent for signing",
+    "revise": "Revise",
+    "void": "Void",
+    "voided": "Contract voided",
+    "mock": {
+      "viewed": "Mock: signer opened it",
+      "signed": "Mock: signer signed",
+      "declined": "Mock: signer declined"
+    }
+  },
+  "upload": {
+    "open": "Upload signed contract",
+    "title": "Upload signed contract",
+    "intro": "Use this when the customer signed on paper. Any PandaDoc contract still open for this property is replaced.",
+    "file": "Signed contract (PDF)",
+    "fileHint": "PDF only, up to 10 MB.",
+    "titleLabel": "Title (optional)",
+    "submit": "Upload contract",
+    "cancel": "Cancel",
+    "done": "Signed contract uploaded",
+    "failed": "Could not upload the contract: {{message}}",
+    "errors": {
+      "file": "Choose the signed contract PDF",
+      "pdf": "Upload the contract as a PDF",
+      "size": "The file must be 10 MB or smaller",
+      "title": "Title is too long"
+    }
+  },
+  "create": {
+    "open": "Create with PandaDoc",
+    "title": "Create contract in PandaDoc",
+    "intro": "A draft is created from the template. Send it when it is ready; the buyer signs by email.",
+    "template": "Template",
+    "submit": "Create draft",
+    "cancel": "Cancel",
+    "done": "Draft contract created"
+  },
+  "revise": {
+    "title": "Revise contract",
+    "intro": "{{title}} (version {{version}}) will be voided and a new draft version is opened in PandaDoc.",
+    "note": "What is changing",
+    "noteHint": "Kept with the new version, for example a corrected price or plan.",
+    "submit": "Create revision",
+    "cancel": "Cancel",
+    "done": "New draft version created",
+    "failed": "Could not revise the contract: {{message}}",
+    "errors": { "note": "Say what is being changed" }
+  },
+  "void": {
+    "title": "Void contract",
+    "message": "Void {{title}}? It stays on record but is no longer valid."
+  }
+}

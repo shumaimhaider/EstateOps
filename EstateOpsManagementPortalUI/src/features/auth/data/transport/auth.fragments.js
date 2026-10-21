@@ -4,6 +4,7 @@ export const USER_FIELDS = /* GraphQL */ `
     name
     email
     role
+    permissions
     tenant {
       id
       slug

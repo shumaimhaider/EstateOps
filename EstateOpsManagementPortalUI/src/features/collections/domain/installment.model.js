@@ -7,7 +7,9 @@ import PropTypes from 'prop-types';
  * @typedef {{
  *   id: string, tenantId: string, bookingId: string, invoiceNo: string, sequence: number,
  *   kind: 'down_payment'|'emi', unitNo: string, unitKind: string, projectName: string,
- *   buyerName: string, issuedOn: string, dueDate: string, amount: Money, paid: Money,
+ *   buyerName: string, issuedOn: string, dueDate: string, amount: Money, originalAmount: Money,
+ *   adjustmentReason: string|null, paymentSource: 'manual'|'stripe'|null, receivedOn: string|null,
+ *   paid: Money,
  *   balance: Money, fine: Money, status: InvoiceStatus, daysLate: number, paidAt: string|null,
  *   method: string|null, paymentReference: string|null, receiptNo: string|null,
  *   allowedActions: string[], createdAt: string, updatedAt: string

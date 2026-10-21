@@ -10,6 +10,7 @@ export function userFromApi(dto) {
     name: dto.name,
     email: dto.email,
     role: dto.role,
+    permissions: dto.permissions,
     tenant: {
       id: dto.tenant.id,
       slug: dto.tenant.slug,

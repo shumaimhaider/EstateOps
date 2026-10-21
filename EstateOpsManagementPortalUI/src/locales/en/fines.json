@@ -1,0 +1,88 @@
+{
+  "title": "Fine rates",
+  "subtitle": "What a customer is charged for an overdue installment. Rates can differ by category (plots, flats, villas, shops). The most specific rate wins: customer, then property, then project, then the default.",
+  "scopes": {
+    "default": "Default",
+    "project": "Project",
+    "unit": "Property",
+    "customer": "Customer"
+  },
+  "rate": {
+    "percent": "{{value}}% of each overdue installment",
+    "fixed": "per overdue installment"
+  },
+  "card": {
+    "title": {
+      "default": "Default fine rate",
+      "project": "Fine rate for this project",
+      "unit": "Fine rate for this property",
+      "customer": "Fine rate for this customer"
+    },
+    "hint": {
+      "default": "Applies wherever no project, property or customer rate is set.",
+      "project": "Applies to every property in the project unless a category or property rate overrides it.",
+      "unit": "Applies to this property unless its customer has a specific rate.",
+      "customer": "Applies to everything this customer owns, ahead of property and project rates. Set a category rate to price shops and plots differently for this customer."
+    },
+    "inherited": "Inherited from the {{source}} rate {{name}}",
+    "isDefault": "Used wherever nothing more specific is set.",
+    "custom": "A rate set here for this level.",
+    "change": "Change rate",
+    "set": "Set a specific rate",
+    "clear": "Remove specific rate",
+    "clearTitle": "Remove specific rate",
+    "clearMessage": "Fines on overdue invoices are recalculated with the rate this level inherits.",
+    "saved": "Fine rate saved. Overdue fines were recalculated.",
+    "cleared": "Specific rate removed. Overdue fines were recalculated.",
+    "titleCategory": "{{category}}"
+  },
+  "form": {
+    "title": {
+      "default": "Change the default fine rate",
+      "project": "Set a fine rate for this project",
+      "unit": "Set a fine rate for this property",
+      "customer": "Set a fine rate for this customer"
+    },
+    "kind": "Charge as",
+    "kinds": {
+      "percent": "Percentage of the installment",
+      "fixed": "Fixed amount per installment"
+    },
+    "percent": "Percentage (%)",
+    "percentHint": "0 to 100, up to two decimals. Charged on the installment amount.",
+    "amount": "Amount ({{currency}})",
+    "amountHint": "Charged once for each overdue installment.",
+    "save": "Save rate",
+    "cancel": "Cancel",
+    "failed": "Could not save the rate: {{message}}",
+    "errors": {
+      "percent": "Enter a percentage from 0 to 100",
+      "amount": "Enter an amount"
+    },
+    "titleCategory": "Set the {{level}} rate for {{category}}"
+  },
+  "table": {
+    "label": "Specific fine rates",
+    "level": "Level",
+    "appliesTo": "Applies to",
+    "rate": "Rate",
+    "updated": "Last changed",
+    "actions": "Actions",
+    "remove": "Remove the rate for {{name}}",
+    "removeMessage": "Remove the specific rate for {{name}}? Overdue fines are recalculated with the rate it inherits.",
+    "emptyTitle": "No specific rates yet",
+    "emptyBody": "Everything uses the default rate. Set a rate on a project, property or customer page.",
+    "category": "Category",
+    "everywhere": "Everywhere"
+  },
+  "categories": {
+    "all": "All categories",
+    "plot": "Plots",
+    "flat": "Flats",
+    "villa": "Villas",
+    "shop": "Shops",
+    "summary": "Rates by category",
+    "hint": "Give plots, flats, villas or shops their own rate. A category without one uses the rate for all categories.",
+    "groupLabel": "{{level}} fine rates"
+  }
+}

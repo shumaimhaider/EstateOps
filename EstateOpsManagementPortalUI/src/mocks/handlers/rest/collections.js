@@ -1,6 +1,7 @@
 import { http } from 'msw';
 import { listEscalations, sendNotice } from '../../engine/escalations.js';
 import { listInstallments, payInstallment } from '../../engine/installments.js';
+import { createPaymentIntent, recordStripePayment } from '../../engine/stripe.js';
 import { collectionsStats } from '../../engine/stats.js';
 import { respond, restPage } from './respond.js';
 
@@ -20,6 +21,26 @@ export const collectionsRestHandlers = [
       name: 'installments.pay',
       write: true,
       perform: (db, ctx) => payInstallment(db, ctx, params.id, body),
+    });
+  }),
+  http.post(`${API}/installments/:id/payment-intents`, async ({ request, params }) => {
+    const body = await request.clone().json();
+    return respond(
+      request,
+      {
+        name: 'installments.paymentIntent',
+        write: true,
+        perform: (db, ctx) => createPaymentIntent(db, ctx, params.id, body),
+      },
+      { status: 201 },
+    );
+  }),
+  http.post(`${API}/installments/:id/card-payments`, async ({ request, params }) => {
+    const body = await request.clone().json();
+    return respond(request, {
+      name: 'installments.cardPayment',
+      write: true,
+      perform: (db, ctx) => recordStripePayment(db, ctx, params.id, body),
     });
   }),
   http.get(`${API}/escalations`, ({ request }) =>

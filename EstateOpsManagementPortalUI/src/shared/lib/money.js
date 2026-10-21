@@ -36,3 +36,11 @@ export function parseMajorToMinor(text, currency) {
   const minor = Number(whole + fraction.padEnd(exp, '0'));
   return Number.isSafeInteger(minor) ? minor : null;
 }
+
+/** Plain-number string for an amount input (no grouping), e.g. 1250000.50 */
+export function minorToMajorInput(minor, currency) {
+  const exp = minorExponent(currency);
+  const s = String(minor).padStart(exp + 1, '0');
+  const whole = s.slice(0, s.length - exp);
+  return exp === 0 ? whole : `${whole}.${s.slice(s.length - exp)}`;
+}

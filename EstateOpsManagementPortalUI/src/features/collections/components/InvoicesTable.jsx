@@ -5,8 +5,9 @@ import { HandCoins } from 'lucide-react';
 import Button from '@/shared/ui/Button.jsx';
 import DataTable from '@/shared/ui/DataTable.jsx';
 import DateOnly from '@/shared/ui/DateOnly.jsx';
+import Money from '@/shared/ui/Money.jsx';
 import { moneyCell } from '@/shared/ui/moneyCell.jsx';
-import { canRecordPayment } from '../domain/installment.rules.js';
+import { canRecordPayment, isAdjusted } from '../domain/installment.rules.js';
 import { invoiceShape } from '../domain/installment.model.js';
 import InvoiceStatusPill from './InvoiceStatusPill.jsx';
 
@@ -70,7 +71,23 @@ export default function InvoicesTable({
         id: 'amount',
         header: t('columns.amount'),
         meta: { sortField: 'amount', align: 'end' },
-        cell: moneyCell((i) => i.amount),
+        cell: ({ row }) => (
+          <span>
+            <Money minor={row.original.amount.minor} currency={row.original.amount.currency} />
+            {isAdjusted(row.original) && (
+              <span
+                className="block text-xs text-content-muted"
+                title={row.original.adjustmentReason ?? undefined}
+              >
+                {t('columns.adjustedFrom')}{' '}
+                <Money
+                  minor={row.original.originalAmount.minor}
+                  currency={row.original.originalAmount.currency}
+                />
+              </span>
+            )}
+          </span>
+        ),
       },
       {
         id: 'paid',

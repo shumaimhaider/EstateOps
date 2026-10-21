@@ -6,6 +6,7 @@ export const userDtoSchema = z.object({
   name: z.string(),
   email: z.string(),
   role: z.string(),
+  permissions: z.array(z.string()),
   tenant: z.object({
     id: z.uuid(),
     slug: z.string(),

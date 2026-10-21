@@ -20,7 +20,9 @@ function buildUrl(path, query) {
 async function request(method, path, { query, body, idempotencyKey, signal } = {}) {
   const headers = { Accept: 'application/json' };
   const isWrite = method !== 'GET';
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
+  // multipart bodies set their own Content-Type (with the boundary)
+  if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
   if (isWrite) headers['Idempotency-Key'] = idempotencyKey ?? newIdempotencyKey();
 
   let response;
@@ -28,7 +30,7 @@ async function request(method, path, { query, body, idempotencyKey, signal } = {
     response = await authFetch(buildUrl(path, query), {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined || isForm ? body : JSON.stringify(body),
       signal,
     });
   } catch (cause) {

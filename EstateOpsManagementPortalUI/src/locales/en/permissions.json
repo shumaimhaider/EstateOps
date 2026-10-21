@@ -1,0 +1,44 @@
+{
+  "title": "Roles and permissions",
+  "subtitle": "Choose what each role can see and do in the portal. Changes apply the next time that person signs in or the page reloads.",
+  "lockedNote": "Owner and admin always keep every permission so the team can never be locked out.",
+  "saved": "Permissions saved for {{role}}",
+  "saveFailed": "Could not save permissions: {{message}}",
+  "matrix": {
+    "label": "Role permissions",
+    "permission": "Permission",
+    "cell": "{{role}}: {{permission}}"
+  },
+  "groups": {
+    "overview": "Overview",
+    "insights": "Stats",
+    "inventory": "Inventory",
+    "sales": "Sales and customers",
+    "collections": "Payments and invoices",
+    "contracts": "Contracts",
+    "settings": "Settings"
+  },
+  "keys": {
+    "dashboard": { "view": "See the dashboard" },
+    "stats": { "view": "See collection stats" },
+    "escalations": { "view": "See escalated cases" },
+    "projects": { "view": "See projects" },
+    "units": { "view": "See units" },
+    "sales": { "view": "See sales and invoices" },
+    "customers": { "view": "See customers" },
+    "payments": {
+      "record": "Mark payments received",
+      "card": "Take card payments"
+    },
+    "invoices": { "adjust": "Adjust an invoice amount when taking payment" },
+    "contracts": {
+      "view": "See contracts",
+      "manage": "Upload, send and revise contracts"
+    },
+    "fines": {
+      "view": "See fine rates",
+      "manage": "Change fine rates"
+    },
+    "permissions": { "manage": "Manage roles and permissions" }
+  }
+}

@@ -37,7 +37,8 @@
     "missed": "Missed",
     "overdueAmount": "Overdue amount",
     "oldestDue": "Oldest unpaid",
-    "notice": "Notice letter"
+    "notice": "Notice letter",
+    "adjustedFrom": "was"
   },
   "filters": {
     "search": "Search",
@@ -64,7 +65,7 @@
     "title": "Record payment",
     "summary": "Taking payment from {{buyer}} for invoice {{invoice}} (unit {{unit}}). Outstanding balance: {{balance}}.",
     "invoice": "Invoice",
-    "invoiceOption": "{{invoice}} \u00b7 unit {{unit}} \u00b7 balance {{balance}}",
+    "invoiceOption": "{{invoice}} · unit {{unit}} · balance {{balance}}",
     "amount": "Amount ({{currency}})",
     "amountHint": "Defaults to the full balance. Enter less for a part payment.",
     "method": "Method",
@@ -82,9 +83,35 @@
     "errors": {
       "invoice": "Choose an invoice",
       "amount": "Enter an amount up to the outstanding balance",
-      "reference": "Reference is too long"
+      "reference": "Reference is too long",
+      "cardNumber": "Enter the card number",
+      "cardExpiry": "Enter the expiry as MM/YY",
+      "cardCvc": "Enter the 3 or 4 digit security code",
+      "adjustedAmount": "Enter a new invoice amount above what is already paid",
+      "adjustmentReason": "Give a reason for changing the invoice amount"
     },
-    "actionShort": "Pay"
+    "actionShort": "Pay",
+    "type": "How was it paid?",
+    "types": {
+      "manual": "Mark as received",
+      "card": "Pay by card (Stripe)"
+    },
+    "receivedOn": "Date received",
+    "receivedOnHint": "Leave empty for today. Use an earlier date for money received before.",
+    "adjust": {
+      "toggle": "Adjust the invoice amount",
+      "newAmount": "New invoice amount ({{currency}})",
+      "hint": "Invoice is {{amount}} ({{paid}} already paid). The change is recorded with your reason.",
+      "reason": "Reason for the change"
+    },
+    "card": {
+      "number": "Card number",
+      "expiry": "Expiry (MM/YY)",
+      "cvc": "Security code (CVC)",
+      "submit": "Pay by card",
+      "testHint": "Test cards: 4242 4242 4242 4242 pays, 4000 0000 0000 0002 is declined."
+    },
+    "cardSuccess": "Card payment received for {{invoice}}"
   },
   "tiles": {
     "saleValue": "Total sale value",
@@ -93,7 +120,7 @@
     "overdue": "Overdue",
     "dueThisMonth": "Due this month",
     "scheduled": "Installments scheduled",
-    "scheduledHint": "{{paid}} paid \u00b7 {{upcoming}} upcoming",
+    "scheduledHint": "{{paid}} paid · {{upcoming}} upcoming",
     "bookings_one": "{{count}} booking",
     "bookings_other": "{{count}} bookings",
     "installmentsPaid_one": "{{count}} installment paid",

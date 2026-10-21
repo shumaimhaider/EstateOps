@@ -1,5 +1,6 @@
 import { nowIso } from './clock.js';
 import { MockApiError } from './errors.js';
+import { permissionsFor } from './permissions.js';
 
 /** Mock credentials: any seeded email with this password, then 2FA code 123456. */
 export const MOCK_PASSWORD = 'Passw0rd!';
@@ -44,6 +45,7 @@ export function toUserDto(db, user) {
     name: user.name,
     email: user.email,
     role: user.role,
+    permissions: permissionsFor(db, user.tenant_id, user.role),
     tenant: {
       id: tenant.id,
       slug: tenant.slug,

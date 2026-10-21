@@ -12,12 +12,13 @@ export { default as AgeingChart } from './components/AgeingChart.jsx';
 
 export { useInvoicesQuery } from './hooks/useInvoicesQuery.js';
 export { useRecordPaymentMutation } from './hooks/useRecordPaymentMutation.js';
+export { useCardPaymentMutation } from './hooks/useCardPaymentMutation.js';
 export { useEscalationsQuery } from './hooks/useEscalationsQuery.js';
 export { useSendNoticeMutation } from './hooks/useSendNoticeMutation.js';
 export { useCollectionsStatsQuery } from './hooks/useCollectionsStatsQuery.js';
 export { invoiceKeys, escalationKeys, statsKeys } from './hooks/collections.keys.js';
 
 export * from './domain/installment.constants.js';
-export { payableInvoices, canRecordPayment } from './domain/installment.rules.js';
+export { payableInvoices, canRecordPayment, isAdjusted } from './domain/installment.rules.js';
 export { invoiceShape } from './domain/installment.model.js';
 export { escalationShape } from './domain/escalation.model.js';

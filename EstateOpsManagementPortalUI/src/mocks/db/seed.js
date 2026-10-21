@@ -1,7 +1,10 @@
 import { faker } from '@faker-js/faker';
 import { createClock, SIM_START } from '../engine/clock.js';
 import { layoutProject } from './layout.js';
+import { seedContracts } from './seedContracts.js';
 import { seedSales } from './seedSales.js';
+import { seedFineRules } from '../engine/fines.js';
+import { seedPermissions } from '../engine/permissions.js';
 
 /**
  * Deterministic seed (fixed faker seed). Rows are stored DTO-shaped (snake_case, money in
@@ -354,11 +357,20 @@ export function buildSeed(seedVersion) {
     bookings: [],
     installments: [],
     notices: [],
+    payments: [],
+    stripeIntents: {},
+    contracts: [],
+    fineRules: [],
+    permissions: {},
     loginHistory: [],
     audit: [],
     idempotency: {},
   };
   for (const def of TENANTS) seedTenant(db, def);
+  for (const tenant of db.tenants) {
+    seedFineRules(db, tenant);
+    seedPermissions(db, tenant);
+  }
   for (const tenant of db.tenants) {
     seedSales(
       db,
@@ -366,6 +378,7 @@ export function buildSeed(seedVersion) {
       db.users.find((u) => u.tenant_id === tenant.id && u.role === 'owner'),
     );
   }
+  seedContracts(db);
   db.seededAt = SIM_START;
   return db;
 }

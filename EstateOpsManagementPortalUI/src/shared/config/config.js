@@ -11,6 +11,9 @@ const envSchema = z.object({
   VITE_GRAPHQL_URL: z.string().min(1).default('/graphql'),
   // Google Identity Services client id (real mode). Mock mode uses a built-in account chooser.
   VITE_GOOGLE_CLIENT_ID: z.string().default(''),
+  // Stripe publishable key (real mode). Mock mode uses a built-in stand-in for Stripe.
+  VITE_STRIPE_PUBLISHABLE_KEY: z.string().default(''),
+  VITE_STRIPE_API_URL: z.string().min(1).default('/stripe/v1'),
 });
 
 const parsed = envSchema.safeParse(import.meta.env);
@@ -24,5 +27,7 @@ export const config = Object.freeze({
   apiBaseUrl: parsed.data.VITE_API_BASE_URL,
   graphqlUrl: parsed.data.VITE_GRAPHQL_URL,
   googleClientId: parsed.data.VITE_GOOGLE_CLIENT_ID,
+  stripePublishableKey: parsed.data.VITE_STRIPE_PUBLISHABLE_KEY,
+  stripeApiUrl: parsed.data.VITE_STRIPE_API_URL,
   isMock: parsed.data.VITE_API_MODE === 'mock',
 });

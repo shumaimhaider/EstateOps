@@ -10,12 +10,14 @@ cp env.example .env.local   # optional; defaults are mock + REST
 npm run dev
 ```
 
-| Variable             | Values             | Effect                                                        |
-| -------------------- | ------------------ | ------------------------------------------------------------- |
-| `VITE_API_MODE`      | `mock` / `real`    | `mock` starts the MSW worker before render                    |
-| `VITE_API_TRANSPORT` | `rest` / `graphql` | Global default; override per feature in `transport.config.js` |
-| `VITE_API_BASE_URL`  | `/api/v1`          | REST base                                                     |
-| `VITE_GRAPHQL_URL`   | `/graphql`         | GraphQL endpoint                                              |
+| Variable                      | Values             | Effect                                                        |
+| ----------------------------- | ------------------ | ------------------------------------------------------------- |
+| `VITE_API_MODE`               | `mock` / `real`    | `mock` starts the MSW worker before render                    |
+| `VITE_API_TRANSPORT`          | `rest` / `graphql` | Global default; override per feature in `transport.config.js` |
+| `VITE_API_BASE_URL`           | `/api/v1`          | REST base                                                     |
+| `VITE_GRAPHQL_URL`            | `/graphql`         | GraphQL endpoint                                              |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | key                | Card payments in real mode (mock mode uses a Stripe stand-in) |
+| `VITE_STRIPE_API_URL`         | `/stripe/v1`       | Where the mock Stripe answers card confirmation               |
 
 Scripts: `format`, `format:check`, `lint`, `lint:fix`, `test`, `test:ci`, `build`, `size`.
 

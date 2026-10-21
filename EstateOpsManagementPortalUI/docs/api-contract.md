@@ -67,3 +67,51 @@ password `Passw0rd!`, 2FA `123456`; Google id token `mock-google:<email>`.
 - `customer.dto.js` — `GET /customers`, `GET /customers/{id}`; ID numbers are masked by the server.
 - `project.dto.js` — adds `units_total`, `unit_counts`; `GET /projects/{id}` and `GET /projects/{id}/map` (site plan shapes).
 - `unit.dto.js` — adds `booking_id` and (detail only) `media` (flats, shops and villas; never plots).
+
+## Payments — `installment.dto.js`
+
+Invoices add `original_amount`, `adjustment_reason`, `payment_source` (`manual` | `stripe`), `received_on`.
+`allowed_actions` is filtered by the caller's permissions: `record_payment` (mark received by hand),
+`pay_by_card`, `adjust_amount`.
+
+- `POST /installments/{id}/pay` marks a payment received by hand. Body `{ method (cash|bank_transfer|online|cheque),
+amount?, reference?, received_on? (not in the future), note?, adjusted_amount?, adjustment_reason? }`.
+  `adjusted_amount` first changes the invoice amount (needs `invoices.adjust`, a reason, and a value above what is paid).
+- `POST /installments/{id}/payment-intents` starts a card payment. Body `{ amount?, adjusted_amount?, adjustment_reason? }`
+  -> `{ payment_intent_id, client_secret, amount, currency, status }`. The adjustment is applied only once the payment is recorded.
+- The browser confirms the card **directly with Stripe** using the client secret. Card data never goes to this API.
+- `POST /installments/{id}/card-payments { payment_intent_id }` verifies the intent with Stripe and records the payment
+  (`409 PAYMENT_NOT_COMPLETED` if Stripe has not confirmed it, `409 BALANCE_CHANGED` if the balance moved). Replaying the same
+  intent returns the invoice without charging again. A `payment_intent.succeeded` webhook should record it too.
+
+## Fine rates — `fineRule.dto.js`
+
+`id, tenant_id, scope (default|project|unit|customer), scope_id, scope_name, unit_kind (plot|flat|villa|shop|null),
+kind (percent|fixed), value, currency, allowed_actions, updated_at, updated_by_name`.
+`value` is basis points for `percent` (200 = 2%) and minor units for `fixed`. `unit_kind` is allowed on default, project and
+customer rules, not on `unit` rules.
+Most specific wins: customer+kind, customer, unit, project+kind, project, default+kind, default.
+
+- `GET /fine-rules` (needs `fines.view`), `PUT /fine-rules` (create or replace one rate, needs `fines.manage`),
+  `DELETE /fine-rules/{id}` (`409 DEFAULT_RULE_REQUIRED` for the all-category default).
+- `GET /fine-rules/effective?scope=&scope_id=&unit_kind=` -> `{ rule, inherited, scope, scope_id, unit_kind, allowed_actions }`.
+- Saving or deleting a rate recalculates `fine_amount` on every unpaid overdue invoice of the tenant.
+
+## Permissions — `permission.dto.js`
+
+`GET /permissions` (needs `permissions.manage`) -> `{ catalog: [{ key, group }], roles: [{ role, permissions, locked }] }`.
+`PUT /permissions/{role} { permissions }`. `owner` and `admin` are locked (`409 ROLE_LOCKED`). The signed-in user DTO
+(`/auth/me`, sign-in) carries `permissions: string[]`.
+
+## Contracts — `contract.dto.js`
+
+`id, booking_id, kind (signed_upload|pandadoc), title, template, status (draft|sent|viewed|signed|declined|voided), version,
+supersedes_id, revision_note, file_name, file_size, pandadoc_document_id, pandadoc_url, signer_email, sent_at, signed_at,
+allowed_actions, created_by_name`.
+
+- `GET /contracts?booking_id=` (needs `contracts.view`), newest version first.
+- `POST /bookings/{id}/contracts/signed` multipart `file` (PDF, up to 10 MB) and optional `title`. `409 CONTRACT_ALREADY_SIGNED`.
+  Voids any PandaDoc contract still open for the booking.
+- `POST /bookings/{id}/contracts/pandadoc { template }` (`409 CONTRACT_OPEN` / `CONTRACT_ALREADY_SIGNED`).
+- `POST /contracts/{id}/send`, `/void`, `/revise { note }` (revise voids the version and returns the next draft).
+- Mock only: `POST /mock/contracts/{id}/events/{viewed|signed|declined}` stands in for PandaDoc webhooks.
