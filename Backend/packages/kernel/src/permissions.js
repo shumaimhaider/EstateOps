@@ -1,0 +1,120 @@
+/** The permission catalogue, role list and the defaults a new tenant starts with. */
+export const PERMISSION = Object.freeze({
+  DASHBOARD_VIEW: 'dashboard.view',
+  STATS_VIEW: 'stats.view',
+  ESCALATIONS_VIEW: 'escalations.view',
+  PROJECTS_VIEW: 'projects.view',
+  UNITS_VIEW: 'units.view',
+  INVENTORY_MANAGE: 'inventory.manage',
+  SALES_VIEW: 'sales.view',
+  CUSTOMERS_VIEW: 'customers.view',
+  SALES_MANAGE: 'sales.manage',
+  CUSTOMERS_MANAGE: 'customers.manage',
+  PAYMENTS_RECORD: 'payments.record',
+  PAYMENTS_CARD: 'payments.card',
+  INVOICES_ADJUST: 'invoices.adjust',
+  CONTRACTS_VIEW: 'contracts.view',
+  CONTRACTS_MANAGE: 'contracts.manage',
+  FINES_VIEW: 'fines.view',
+  FINES_MANAGE: 'fines.manage',
+  PERMISSIONS_MANAGE: 'permissions.manage',
+});
+
+export const PERMISSION_CATALOG = Object.freeze([
+  { key: PERMISSION.DASHBOARD_VIEW, group: 'overview' },
+  { key: PERMISSION.STATS_VIEW, group: 'insights' },
+  { key: PERMISSION.ESCALATIONS_VIEW, group: 'insights' },
+  { key: PERMISSION.PROJECTS_VIEW, group: 'inventory' },
+  { key: PERMISSION.UNITS_VIEW, group: 'inventory' },
+  { key: PERMISSION.INVENTORY_MANAGE, group: 'inventory' },
+  { key: PERMISSION.SALES_VIEW, group: 'sales' },
+  { key: PERMISSION.CUSTOMERS_VIEW, group: 'sales' },
+  { key: PERMISSION.SALES_MANAGE, group: 'sales' },
+  { key: PERMISSION.CUSTOMERS_MANAGE, group: 'sales' },
+  { key: PERMISSION.PAYMENTS_RECORD, group: 'collections' },
+  { key: PERMISSION.PAYMENTS_CARD, group: 'collections' },
+  { key: PERMISSION.INVOICES_ADJUST, group: 'collections' },
+  { key: PERMISSION.CONTRACTS_VIEW, group: 'contracts' },
+  { key: PERMISSION.CONTRACTS_MANAGE, group: 'contracts' },
+  { key: PERMISSION.FINES_VIEW, group: 'settings' },
+  { key: PERMISSION.FINES_MANAGE, group: 'settings' },
+  { key: PERMISSION.PERMISSIONS_MANAGE, group: 'settings' },
+]);
+
+export const ALL_PERMISSIONS = Object.freeze(PERMISSION_CATALOG.map((p) => p.key));
+
+export const ROLES = Object.freeze([
+  'owner',
+  'admin',
+  'sales_manager',
+  'sales_agent',
+  'finance',
+  'inventory_manager',
+  'dealer_manager',
+  'support',
+  'marketing',
+  'auditor',
+]);
+/** Always hold every permission and cannot be edited, so a tenant cannot lock itself out. */
+export const LOCKED_ROLES = Object.freeze(['owner', 'admin']);
+
+const P = PERMISSION;
+const VIEW = [
+  P.DASHBOARD_VIEW,
+  P.STATS_VIEW,
+  P.ESCALATIONS_VIEW,
+  P.PROJECTS_VIEW,
+  P.UNITS_VIEW,
+  P.SALES_VIEW,
+  P.CUSTOMERS_VIEW,
+  P.CONTRACTS_VIEW,
+  P.FINES_VIEW,
+];
+
+export const DEFAULT_ROLE_PERMISSIONS = Object.freeze({
+  owner: ALL_PERMISSIONS,
+  admin: ALL_PERMISSIONS,
+  sales_manager: [
+    P.DASHBOARD_VIEW,
+    P.STATS_VIEW,
+    P.ESCALATIONS_VIEW,
+    P.PROJECTS_VIEW,
+    P.UNITS_VIEW,
+    P.SALES_VIEW,
+    P.CUSTOMERS_VIEW,
+    P.SALES_MANAGE,
+    P.CUSTOMERS_MANAGE,
+    P.PAYMENTS_RECORD,
+    P.CONTRACTS_VIEW,
+    P.CONTRACTS_MANAGE,
+    P.FINES_VIEW,
+  ],
+  sales_agent: [
+    P.DASHBOARD_VIEW,
+    P.PROJECTS_VIEW,
+    P.UNITS_VIEW,
+    P.SALES_VIEW,
+    P.CUSTOMERS_VIEW,
+    P.SALES_MANAGE,
+    P.CUSTOMERS_MANAGE,
+    P.CONTRACTS_VIEW,
+  ],
+  finance: [
+    P.DASHBOARD_VIEW,
+    P.STATS_VIEW,
+    P.ESCALATIONS_VIEW,
+    P.SALES_VIEW,
+    P.CUSTOMERS_VIEW,
+    P.PAYMENTS_RECORD,
+    P.PAYMENTS_CARD,
+    P.INVOICES_ADJUST,
+    P.CONTRACTS_VIEW,
+    P.FINES_VIEW,
+    P.FINES_MANAGE,
+  ],
+  inventory_manager: [P.DASHBOARD_VIEW, P.PROJECTS_VIEW, P.UNITS_VIEW, P.INVENTORY_MANAGE],
+  dealer_manager: [P.DASHBOARD_VIEW, P.SALES_VIEW],
+  support: [P.DASHBOARD_VIEW, P.SALES_VIEW, P.CUSTOMERS_VIEW, P.CONTRACTS_VIEW],
+  marketing: [P.DASHBOARD_VIEW, P.PROJECTS_VIEW, P.UNITS_VIEW],
+  auditor: VIEW,
+});
