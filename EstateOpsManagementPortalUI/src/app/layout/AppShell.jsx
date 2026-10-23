@@ -1,8 +1,9 @@
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Building2, Menu, X } from 'lucide-react';
+import { useSupportWaitingQuery } from '@/features/support/index.js';
 import { UserMenu, useCurrentUser, usePermissions } from '@/features/auth/index.js';
 import { useCollectionsStatsQuery } from '@/features/collections/index.js';
 import { reportError } from '@/shared/lib/errorReporter.js';
@@ -20,7 +21,14 @@ export default function AppShell() {
   const { has } = usePermissions();
   const stats = useCollectionsStatsQuery({});
   const [open, setOpen] = useState(false);
-  const badges = { escalated: stats.data?.escalatedCount };
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => e.key === 'Escape' && setOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+  const support = useSupportWaitingQuery({ enabled: has('customers.view') });
+  const badges = { escalated: stats.data?.escalatedCount, support: support.data };
   // Only the modules this role may open appear in the menu.
   const groups = NAV_GROUPS.map((g) => ({
     ...g,
@@ -36,9 +44,19 @@ export default function AppShell() {
         {t('app.skipToContent')}
       </a>
 
+      {open && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label={t('nav.closeMenu')}
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
       <aside
         id="sidebar"
-        className={`${open ? 'flex' : 'hidden'} flex-col gap-6 bg-sidebar p-4 md:sticky md:top-0 md:flex md:h-screen md:overflow-y-auto`}
+        className={`${open ? 'flex' : 'hidden'} fixed inset-y-0 start-0 z-40 w-72 max-w-[85vw] flex-col gap-6 overflow-y-auto bg-sidebar p-4 shadow-2xl md:sticky md:inset-auto md:top-0 md:z-auto md:flex md:h-screen md:w-auto md:max-w-none md:shadow-none`}
       >
         <p className="flex items-center gap-3 px-2 pt-1 text-lg font-bold text-white">
           <span className="grid size-9 place-items-center rounded-xl bg-primary">

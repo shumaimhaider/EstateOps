@@ -25,9 +25,14 @@ export const bookingMachine = defineMachine('booking', {
   requested: {
     confirm: to('confirmed', true),
     reject: to('cancelled', true),
+    abort: to('cancelled', true),
     cancel: to('cancelled'),
   },
-  confirmed: { activate: to('active', true), cancel: to('cancelled') },
+  confirmed: {
+    activate: to('active', true),
+    abort: to('cancelled', true),
+    cancel: to('cancelled'),
+  },
   active: { complete: to('completed', true), cancel: to('cancelled') },
   completed: {},
   cancelled: {},

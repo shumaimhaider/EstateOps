@@ -56,9 +56,11 @@ export function contractActions(contract, permissions) {
   if (!permissions.includes(PERMISSION.CONTRACTS_MANAGE)) return [];
   const actions = contractMachine.staffActions(contract.status);
   if (contract.kind === 'signed_upload') return actions.filter((a) => a === 'void');
-  return actions.filter((a) =>
+  const allowed = actions.filter((a) =>
     a === 'revise' ? isOpen(contract) : a !== 'void' || contract.status !== 'signed',
   );
+  // once sent, the buyer can sign right on screen (not a state change: the signer does that)
+  return ['sent', 'viewed'].includes(contract.status) ? [...allowed, 'sign_on_screen'] : allowed;
 }
 
 /** A new PandaDoc contract in draft, created from a template with the buyer as signer. */

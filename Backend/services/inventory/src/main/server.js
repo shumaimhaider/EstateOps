@@ -1,14 +1,17 @@
 import { z } from 'zod';
 import { systemClock } from '@estateops/kernel';
 import {
+  CACHE_ENV,
   connect,
+  createCacheFromConfig,
   createDataSource,
   createIdempotencyStore,
-  createInterval,
   createJwtVerifier,
   createLogger,
-  createOutboxStore,
-  createRelay,
+  EVENT_TRANSPORT_ENV,
+  createEventTransport,
+  STORAGE_ENV,
+  createFilesKit,
   createTypeormUow,
   loadConfig,
   startService,
@@ -17,7 +20,15 @@ import { composeInventory } from './compose.js';
 import { ENTITIES, buildRepos } from './repos.js';
 
 const SCHEMA = 'inventory';
-const config = loadConfig(process.env, z.object({ PORT: z.coerce.number().default(8102) }));
+const config = loadConfig(
+  process.env,
+  z.object({
+    ...EVENT_TRANSPORT_ENV,
+    ...CACHE_ENV,
+    PORT: z.coerce.number().default(8102),
+    ...STORAGE_ENV,
+  }),
+);
 const logger = createLogger({ name: SCHEMA, level: config.LOG_LEVEL });
 
 const connectTo = (url) =>
@@ -33,26 +44,27 @@ const app = composeInventory({
   internalToken: config.INTERNAL_TOKEN,
   idempotencyStore: createIdempotencyStore(dataSource, { schema: SCHEMA }),
   readyCheck: () => dataSource.query('SELECT 1'),
+  files: createFilesKit(config),
+  cache: config.REDIS_URL ? createCacheFromConfig(config, { logger }) : undefined,
 });
 
-const relay = createRelay({
-  store: createOutboxStore(dataSource, { schema: SCHEMA }),
-  subscribers: config.subscribers,
-  internalToken: config.INTERNAL_TOKEN,
+const transport = createEventTransport({
+  config,
+  service: SCHEMA,
+  dataSource,
+  schema: SCHEMA,
+  handlers: app.handlers,
   logger,
 });
+await transport.start();
 
 startService({
   app,
   port: config.PORT,
   logger,
-  workers: [
-    createInterval({
-      name: 'outbox-relay',
-      fn: () => relay.tick(),
-      everyMs: config.RELAY_POLL_MS,
-      logger,
-    }),
-  ],
-  onShutdown: () => dataSource.destroy(),
+  workers: [...transport.workers],
+  onShutdown: async () => {
+    await transport.stop();
+    await dataSource.destroy();
+  },
 });

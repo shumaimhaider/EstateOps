@@ -1,6 +1,9 @@
 import {
   Building2,
+  CalendarCheck,
   ChartColumn,
+  CreditCard,
+  LifeBuoy,
   HandCoins,
   LayoutDashboard,
   Percent,
@@ -74,6 +77,28 @@ export const NAV_GROUPS = [
         labelKey: 'nav.sales',
         icon: HandCoins,
         prefetch: () => import('@/pages/sales/SalesPage.jsx'),
+      },
+      {
+        to: '/payments/transactions',
+        perm: 'sales.view',
+        labelKey: 'nav.transactions',
+        icon: CreditCard,
+        prefetch: () => import('@/pages/payments/TransactionsPage.jsx'),
+      },
+      {
+        to: '/payments/collections',
+        perm: 'stats.view',
+        labelKey: 'nav.collectionRuns',
+        icon: CalendarCheck,
+        prefetch: () => import('@/pages/collections/CollectionRunsPage.jsx'),
+      },
+      {
+        to: '/support',
+        perm: 'customers.view',
+        labelKey: 'nav.support',
+        icon: LifeBuoy,
+        badge: 'support',
+        prefetch: () => import('@/pages/support/SupportPage.jsx'),
       },
       {
         to: '/customers',

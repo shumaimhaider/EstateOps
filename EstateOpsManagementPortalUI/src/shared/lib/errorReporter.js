@@ -1,4 +1,4 @@
-/** Sentry-ready adapter. No-op by default (and always in mock mode). */
+/** Sentry-ready adapter. No-op by default. */
 let reporter = () => {};
 
 export function setErrorReporter(fn) {

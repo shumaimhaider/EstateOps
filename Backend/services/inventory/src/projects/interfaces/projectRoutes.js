@@ -1,12 +1,14 @@
 import express from 'express';
 import { actorFrom, pageResponse } from '@estateops/platform';
 import {
+  confirmMapRequest,
   createProjectRequest,
   listQuery,
   toBareProjectResponse,
   toMapResponse,
   toProjectResponse,
   updateProjectRequest,
+  uploadUrlRequest,
 } from './project.dto.js';
 import {
   createBlockRequest,
@@ -16,7 +18,7 @@ import {
   toStructureResponse,
 } from '../../structure/interfaces/structure.dto.js';
 
-export function createProjectRoutes(uc) {
+export function createProjectRoutes(uc, { fileUrl }) {
   const router = express.Router();
   const actor = actorFrom;
 
@@ -52,7 +54,39 @@ export function createProjectRoutes(uc) {
   });
   router.get('/projects/:id/map', async (req, res) => {
     res.json(
-      toMapResponse(await uc.getProjectMap.execute({ actor: actor(req), id: req.params.id })),
+      toMapResponse(
+        await uc.getProjectMap.execute({ actor: actor(req), id: req.params.id }),
+        fileUrl,
+      ),
+    );
+  });
+  router.post('/projects/:id/map/upload-url', async (req, res) => {
+    const body = uploadUrlRequest.parse(req.body);
+    const issued = await uc.requestProjectMapUpload.execute({
+      actor: actor(req),
+      projectId: req.params.id,
+      filename: body.filename,
+      contentType: body.content_type,
+      size: body.size,
+    });
+    res.status(201).json({
+      asset_id: issued.assetId,
+      upload: {
+        method: issued.upload.method,
+        url: issued.upload.url,
+        headers: issued.upload.headers,
+        expires_in: issued.upload.expiresIn,
+      },
+    });
+  });
+  router.put('/projects/:id/map', async (req, res) => {
+    const { asset_id: assetId } = confirmMapRequest.parse(req.body);
+    await uc.confirmProjectMap.execute({ actor: actor(req), projectId: req.params.id, assetId });
+    res.json(
+      toMapResponse(
+        await uc.getProjectMap.execute({ actor: actor(req), id: req.params.id }),
+        fileUrl,
+      ),
     );
   });
   router.get('/projects/:id/structure', async (req, res) => {

@@ -3,7 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Rows3 } from 'lucide-react';
 import { Can } from '@/features/auth/index.js';
 import { FineRuleCategories } from '@/features/fines/index.js';
-import { ProjectMap, useProjectMapQuery, useProjectQuery } from '@/features/inventory/index.js';
+import {
+  ProjectMap,
+  ProjectMapUpload,
+  useProjectMapQuery,
+  useProjectQuery,
+} from '@/features/inventory/index.js';
 import ErrorState from '@/shared/ui/ErrorState.jsx';
 import PageHeader from '@/shared/ui/PageHeader.jsx';
 import Skeleton from '@/shared/ui/Skeleton.jsx';
@@ -42,6 +47,11 @@ export default function ProjectDetailPage() {
       <Can perm="fines.view">
         <div className="mb-6">
           <FineRuleCategories scope="project" scopeId={projectId} />
+        </div>
+      </Can>
+      <Can perm="inventory.manage">
+        <div className="mb-6">
+          <ProjectMapUpload projectId={projectId} currentName={map.data?.imageName} />
         </div>
       </Can>
       {map.isPending && <Skeleton rows={8} />}

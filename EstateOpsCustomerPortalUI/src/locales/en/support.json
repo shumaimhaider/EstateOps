@@ -1,0 +1,23 @@
+{
+  "title": "Support",
+  "intro": "Ask the developer's team a question about your account or a property. Replies appear here.",
+  "newRequest": "New request",
+  "status": { "open": "Waiting for reply", "answered": "Answered", "closed": "Closed" },
+  "list": { "empty": "You have no requests yet.", "lastActivity": "Last activity" },
+  "new": {
+    "title": "New support request",
+    "subject": "Subject",
+    "property": "About",
+    "generalQuestion": "A general question",
+    "message": "How can we help?",
+    "send": "Send request",
+    "cancel": "Cancel"
+  },
+  "thread": { "you": "You", "reply": "Your reply", "send": "Send reply", "back": "All requests" },
+  "errors": {
+    "subject": "Give the request a short subject",
+    "subjectLong": "The subject is too long (120 characters at most)",
+    "message": "Write your message",
+    "messageLong": "The message is too long (4,000 characters at most)"
+  }
+}

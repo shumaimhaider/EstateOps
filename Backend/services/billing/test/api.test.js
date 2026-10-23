@@ -5,7 +5,6 @@ import { TEST_TENANT_A, TEST_TENANT_B, deliverEvent } from '@estateops/platform/
 import { CONFIRMED, buildBillingTest, uuid } from './fakes.js';
 
 const BASE = '/api/v1/admin';
-const CARD = { number: '4242 4242 4242 4242', expiry: '12/30', cvc: '123' };
 const INVOICE_KEYS = [
   'adjustment_reason',
   'allowed_actions',
@@ -265,104 +264,6 @@ describe('billing API', () => {
           )
         ).status,
       ).toBe(403);
-    });
-  });
-
-  describe('paying by card', () => {
-    let invoice;
-    beforeEach(async () => {
-      await seed();
-      [, invoice] = await invoices();
-    });
-    const startIntent = (body = {}) => post(`/installments/${invoice.id}/payment-intents`, body);
-    const confirm = (intent, card = CARD) =>
-      post(`/mock/payment-intents/${intent.payment_intent_id}/confirm`, {
-        client_secret: intent.client_secret,
-        card,
-      });
-    const record = (intent) =>
-      post(`/installments/${invoice.id}/card-payments`, {
-        payment_intent_id: intent.payment_intent_id,
-      });
-
-    it('creates an intent, takes the card at the provider (never through our payment routes), then records it', async () => {
-      const created = await startIntent({ amount: 3_000_000 });
-      expect(created.status).toBe(201);
-      expect(Object.keys(created.body).sort()).toEqual([
-        'amount',
-        'client_secret',
-        'currency',
-        'payment_intent_id',
-        'status',
-      ]);
-      expect(created.body).toMatchObject({
-        amount: 3_000_000,
-        currency: 'PKR',
-        status: 'requires_payment_method',
-      });
-      const confirmed = await confirm(created.body);
-      expect(confirmed.status).toBe(200);
-      expect(confirmed.body.status).toBe('succeeded');
-      const recorded = await record(created.body);
-      expect(recorded.body).toMatchObject({
-        paid_amount: 3_000_000,
-        payment_source: 'stripe',
-        method: 'card',
-      });
-      expect(recorded.body.payment_reference).toMatch(/^ch_mock_/);
-    });
-    it('answers a declined card with 402 and the provider message, and leaves the invoice unpaid', async () => {
-      const created = await startIntent();
-      const declined = await confirm(created.body, { ...CARD, number: '4000 0000 0000 0002' });
-      expect(declined.status).toBe(402);
-      expect(declined.body.error).toMatchObject({
-        code: 'card_declined',
-        message: 'Your card was declined.',
-      });
-      expect((await record(created.body)).body.code).toBe('PAYMENT_NOT_COMPLETED');
-      expect((await get(`/installments/${invoice.id}`)).body.paid_amount).toBe(0);
-    });
-    it('records a card payment once however often it is replayed', async () => {
-      const created = await startIntent();
-      await confirm(created.body);
-      const first = await record(created.body);
-      const second = await record(created.body);
-      expect(second.body.paid_amount).toBe(first.body.paid_amount);
-      expect((await get(`/installments/${invoice.id}/payments`)).body.data).toHaveLength(1);
-    });
-    it('answers 422, 409, 403 and 404 where they belong', async () => {
-      expect((await startIntent({ amount: 99_999_999 })).status).toBe(422);
-      expect((await post(`/installments/${invoice.id}/card-payments`, {})).status).toBe(422);
-      expect(
-        (await post(`/installments/${invoice.id}/card-payments`, { payment_intent_id: 'pi_nope' }))
-          .status,
-      ).toBe(404);
-      const manager = await t.auth.bearer({ role: 'sales_manager' });
-      expect((await post(`/installments/${invoice.id}/payment-intents`, {}, manager)).status).toBe(
-        403,
-      );
-      const created = await startIntent();
-      expect(
-        (
-          await post(`/mock/payment-intents/${created.body.payment_intent_id}/confirm`, {
-            client_secret: 'wrong',
-            card: CARD,
-          })
-        ).status,
-      ).toBe(404);
-      expect(
-        (await post(`/mock/payment-intents/pi_nope/confirm`, { client_secret: 'x', card: CARD }))
-          .status,
-      ).toBe(404);
-    });
-    it('does not mount the mock card route outside development', async () => {
-      const { composeBilling } = await import('../src/main/compose.js');
-      const prod = composeBilling({ ...t.deps, mockCard: false });
-      const res = await request(prod)
-        .post(`${BASE}/mock/payment-intents/pi_x/confirm`)
-        .set(finance)
-        .send({ client_secret: 'x', card: CARD });
-      expect(res.status).toBe(404);
     });
   });
 

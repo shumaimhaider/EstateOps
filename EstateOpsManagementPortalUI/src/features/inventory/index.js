@@ -5,6 +5,8 @@ export { default as UnitFormDialog } from './components/UnitFormDialog.jsx';
 export { default as UnitActions } from './components/UnitActions.jsx';
 export { default as UnitDetailPanel } from './components/UnitDetailPanel.jsx';
 export { default as ProjectCard } from './components/ProjectCard.jsx';
+export { default as UnitPicturesManager } from './components/UnitPicturesManager.jsx';
+export { default as ProjectMapUpload } from './components/ProjectMapUpload.jsx';
 export { default as ProjectMap } from './components/ProjectMap.jsx';
 export { default as UnitStatusPill } from './components/UnitStatusPill.jsx';
 

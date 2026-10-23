@@ -1,0 +1,242 @@
+# The whole system with one command:   make up      (or: docker compose up -d --build)
+#   management portal  http://localhost:5173        customer portal  http://localhost:5174
+#   API gateway        http://localhost:8080
+# Configuration comes from .env (see env.example, `make init`).
+# Profiles:  mock = built-in Stripe/PandaDoc/S3 stand-ins   kafka = Kafka broker (set EVENT_TRANSPORT=kafka)
+
+x-service: &service
+  restart: unless-stopped
+  depends_on:
+    migrate: { condition: service_completed_successfully }
+    redis: { condition: service_healthy }
+  environment: &common
+    NODE_ENV: production
+    LOG_LEVEL: info
+    JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+    INTERNAL_TOKEN: ${INTERNAL_TOKEN}
+    REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+    EVENT_TRANSPORT: ${EVENT_TRANSPORT:-http}
+    KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9092}
+    RELAY_POLL_MS: 500
+    DB_POOL_SIZE: 10
+    PORT: 8080
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/00-databases.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 3s
+      retries: 40
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      retries: 40
+
+  kafka:
+    profiles: [kafka]
+    image: apache/kafka:3.8.0
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+    volumes: [kafkadata:/var/lib/kafka/data]
+
+  # Stand-ins for Stripe, PandaDoc and the file bucket (`make up-mock`). Never use in production.
+  mock-providers:
+    profiles: [mock]
+    build: { context: ./Backend, args: { SERVICE: identity } }
+    image: estateops/backend:local
+    restart: unless-stopped
+    command: ['node', 'packages/mock-providers/src/cli.js']
+    environment:
+      MOCK_HOST: 0.0.0.0
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_mock}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_mock}
+      STRIPE_WEBHOOK_URL: http://gateway:8080/webhooks/stripe
+      PANDADOC_API_KEY: ${PANDADOC_API_KEY:-pandadoc_mock_key}
+      PANDADOC_WEBHOOK_KEY: ${PANDADOC_WEBHOOK_KEY:-pandadoc_mock_shared}
+      PANDADOC_WEBHOOK_URL: http://gateway:8080/webhooks/pandadoc
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-mock-access-key}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-mock-secret-key}
+    ports: ['12111:12111', '12112:12112', '12113:12113']
+
+  # Applies every service's database migrations, then exits. The services wait for it.
+  migrate:
+    build: { context: ./Backend, args: { SERVICE: identity } }
+    image: estateops/backend:local
+    command: ['node', 'db/migrate.js', 'up']
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DATABASE_URL_IDENTITY: &db_identity postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/estateops_identity
+      DATABASE_URL_INVENTORY: &db_inventory postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/estateops_inventory
+      DATABASE_URL_CUSTOMER: &db_customer postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/estateops_customer
+      DATABASE_URL_SALES: &db_sales postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/estateops_sales
+      DATABASE_URL_BILLING: &db_billing postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/estateops_billing
+      DATABASE_URL_CONTRACT: &db_contract postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/estateops_contract
+
+  identity:
+    <<: *service
+    build: { context: ./Backend, args: { SERVICE: identity } }
+    image: estateops/identity:local
+    environment:
+      <<: *common
+      DATABASE_URL: *db_identity
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN}
+      EVENT_SUBSCRIBERS: &subscribers inventory=http://inventory:8080,customer=http://customer:8080,sales=http://sales:8080,billing=http://billing:8080,contract=http://contract:8080,identity=http://identity:8080
+      SMTP_URL: ${SMTP_URL:-}
+      MAIL_FROM: ${MAIL_FROM}
+      CUSTOMER_PORTAL_URL: ${CUSTOMER_PORTAL_URL}
+    healthcheck: &health
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/health/ready >/dev/null']
+      interval: 5s
+      retries: 30
+
+  inventory:
+    <<: *service
+    build: { context: ./Backend, args: { SERVICE: inventory } }
+    image: estateops/inventory:local
+    environment:
+      <<: *common
+      DATABASE_URL: *db_inventory
+      EVENT_SUBSCRIBERS: *subscribers
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-s3}
+      S3_BUCKET: ${S3_BUCKET:-estateops}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      STORAGE_PUBLIC_BASE_URL: ${STORAGE_PUBLIC_BASE_URL}
+    healthcheck: *health
+
+  customer:
+    <<: *service
+    build: { context: ./Backend, args: { SERVICE: customer } }
+    image: estateops/customer:local
+    environment:
+      <<: *common
+      DATABASE_URL: *db_customer
+      EVENT_SUBSCRIBERS: *subscribers
+      SMTP_URL: ${SMTP_URL:-}
+      MAIL_FROM: ${MAIL_FROM}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
+    healthcheck: *health
+
+  sales:
+    <<: *service
+    build: { context: ./Backend, args: { SERVICE: sales } }
+    image: estateops/sales:local
+    environment:
+      <<: *common
+      DATABASE_URL: *db_sales
+      EVENT_SUBSCRIBERS: *subscribers
+      BILLING_URL: http://billing:8080
+    healthcheck: *health
+
+  billing:
+    <<: *service
+    build: { context: ./Backend, args: { SERVICE: billing } }
+    image: estateops/billing:local
+    environment:
+      <<: *common
+      DATABASE_URL: *db_billing
+      EVENT_SUBSCRIBERS: *subscribers
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      STRIPE_API_BASE: ${STRIPE_API_BASE:-}
+      STRIPE_RETURN_URL: ${MANAGEMENT_PORTAL_URL}/payments/return?checkout={CHECKOUT_ID}
+      SMTP_URL: ${SMTP_URL:-}
+      MAIL_FROM: ${MAIL_FROM}
+      COLLECTION_RUN_AT: ${COLLECTION_RUN_AT:-06:00}
+      COLLECTION_ENABLED: ${COLLECTION_ENABLED:-true}
+    healthcheck: *health
+
+  contract:
+    <<: *service
+    build: { context: ./Backend, args: { SERVICE: contract } }
+    image: estateops/contract:local
+    environment:
+      <<: *common
+      DATABASE_URL: *db_contract
+      EVENT_SUBSCRIBERS: *subscribers
+      STORAGE_DIR: /app/storage
+      PANDADOC_API_KEY: ${PANDADOC_API_KEY}
+      PANDADOC_WEBHOOK_KEY: ${PANDADOC_WEBHOOK_KEY}
+      PANDADOC_TEMPLATE_SALE_AGREEMENT: ${PANDADOC_TEMPLATE_SALE_AGREEMENT}
+      PANDADOC_TEMPLATE_PAYMENT_PLAN: ${PANDADOC_TEMPLATE_PAYMENT_PLAN}
+      PANDADOC_API_BASE: ${PANDADOC_API_BASE:-https://api.pandadoc.com}
+      PANDADOC_SESSION_BASE: ${PANDADOC_SESSION_BASE:-https://app.pandadoc.com/s}
+    volumes: [contractfiles:/app/storage]
+    healthcheck: *health
+
+  gateway:
+    build: { context: ./Backend, args: { SERVICE: gateway } }
+    image: estateops/gateway:local
+    restart: unless-stopped
+    depends_on:
+      identity: { condition: service_healthy }
+      inventory: { condition: service_healthy }
+      customer: { condition: service_healthy }
+      sales: { condition: service_healthy }
+      billing: { condition: service_healthy }
+      contract: { condition: service_healthy }
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      PORT: 8080
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      UPSTREAM_IDENTITY: http://identity:8080
+      UPSTREAM_INVENTORY: http://inventory:8080
+      UPSTREAM_CUSTOMER: http://customer:8080
+      UPSTREAM_SALES: http://sales:8080
+      UPSTREAM_BILLING: http://billing:8080
+      UPSTREAM_CONTRACT: http://contract:8080
+    healthcheck: *health
+    ports: ['${GATEWAY_PORT:-8080}:8080']
+
+  management-portal:
+    build: { context: ./EstateOpsManagementPortalUI }
+    image: estateops/management-portal:local
+    restart: unless-stopped
+    depends_on:
+      gateway: { condition: service_healthy }
+    ports: ['${MANAGEMENT_PORTAL_PORT:-5173}:80']
+
+  customer-portal:
+    build: { context: ./EstateOpsCustomerPortalUI }
+    image: estateops/customer-portal:local
+    restart: unless-stopped
+    depends_on:
+      gateway: { condition: service_healthy }
+    ports: ['${CUSTOMER_PORTAL_PORT:-5174}:80']
+
+volumes:
+  pgdata:
+  redisdata:
+  kafkadata:
+  contractfiles:

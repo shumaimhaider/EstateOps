@@ -1,6 +1,29 @@
-import { createEventConsumerRouter, createServiceApp } from '@estateops/platform';
+import { EVENT } from '@estateops/contracts';
+import { assertMailer, createEventConsumerRouter, createServiceApp } from '@estateops/platform';
+import { ApplyCustomerUpserted } from '../portal/application/ApplyCustomerUpserted.js';
+import {
+  CustomerLogin,
+  CustomerLogout,
+  CustomerRefresh,
+  GetPortalMe,
+} from '../portal/application/CustomerSignIn.js';
+import {
+  ChangePassword,
+  ForgotPassword,
+  SetPassword,
+} from '../portal/application/PasswordFlows.js';
+import {
+  GetPortalAccess,
+  SendAccessLink,
+  SetPortalAccess,
+} from '../portal/application/StaffPortalAccess.js';
+import {
+  createPortalAccessRoutes,
+  createPortalAuthRoutes,
+} from '../portal/interfaces/portalRoutes.js';
 import { GetMe } from '../auth/application/GetMe.js';
 import { Login } from '../auth/application/Login.js';
+import { LoginThrottle } from '../auth/application/LoginThrottle.js';
 import { Logout } from '../auth/application/Logout.js';
 import { RefreshSession } from '../auth/application/RefreshSession.js';
 import { VerifyTwoFactor } from '../auth/application/VerifyTwoFactor.js';
@@ -40,13 +63,54 @@ export function composeIdentity({
   bootstrapToken,
   idempotencyStore = null,
   readyCheck,
+  cache = null,
+  mailer,
+  portalUrl = 'http://localhost:5174',
 }) {
+  assertMailer(mailer);
   const auth = createAuthRoutes({
-    login: new Login({ uow, hasher, tokens, clock }),
+    login: new Login({
+      uow,
+      hasher,
+      tokens,
+      clock,
+      throttle: cache ? new LoginThrottle({ cache }) : null,
+    }),
     verifyTwoFactor: new VerifyTwoFactor({ uow, totp, signer, tokens, clock }),
     refreshSession: new RefreshSession({ uow, signer, tokens, clock }),
     logout: new Logout({ uow, tokens }),
     getMe: new GetMe({ uow }),
+  });
+  const customerThrottle = (scope, over = {}) =>
+    cache ? new LoginThrottle({ cache, scope, ...over }) : null;
+  const portalDeps = { uow, clock, tokens, hasher, mailer, portalUrl };
+  const portalAuth = createPortalAuthRoutes({
+    login: new CustomerLogin({
+      uow,
+      hasher,
+      tokens,
+      signer,
+      clock,
+      throttle: customerThrottle('portal'),
+    }),
+    refresh: new CustomerRefresh({ uow, signer, tokens, clock }),
+    logout: new CustomerLogout({ uow, tokens }),
+    forgotPassword: new ForgotPassword({
+      ...portalDeps,
+      throttle: customerThrottle('portal-forgot', {
+        maxPerEmail: 5,
+        maxPerAddress: 30,
+        windowMs: 60 * 60_000,
+      }),
+    }),
+    setPassword: new SetPassword(portalDeps),
+    changePassword: new ChangePassword(portalDeps),
+    getMe: new GetPortalMe({ uow }),
+  });
+  const portalAccess = createPortalAccessRoutes({
+    getPortalAccess: new GetPortalAccess({ uow }),
+    sendAccessLink: new SendAccessLink(portalDeps),
+    setPortalAccess: new SetPortalAccess({ uow }),
   });
   const users = createUserRoutes({
     createUser: new CreateUser({ uow, hasher, totp }),
@@ -68,7 +132,11 @@ export function composeIdentity({
     bootstrapToken,
   });
 
-  return createServiceApp({
+  const handlers = {
+    // a customer made in the management portal gets a portal account and an invitation
+    [EVENT.CUSTOMER_UPSERTED]: (e) => new ApplyCustomerUpserted(portalDeps).execute(e),
+  };
+  const app = createServiceApp({
     name: 'identity',
     logger,
     verifier,
@@ -76,8 +144,10 @@ export function composeIdentity({
     idempotencyStore,
     readyCheck,
     publicRouters: [auth.open],
-    adminRouters: [auth.authed, users, permissions, tenant],
-    // identity consumes no events, but acknowledges stray ones so a sender never retries them
-    internalRouters: [bootstrap, createEventConsumerRouter({ handlers: {}, logger })],
+    adminRouters: [auth.authed, users, permissions, tenant, portalAccess],
+    portalPublicRouters: [portalAuth.open],
+    portalRouters: [portalAuth.authed],
+    internalRouters: [bootstrap, createEventConsumerRouter({ handlers, logger })],
   });
+  return Object.assign(app, { handlers });
 }

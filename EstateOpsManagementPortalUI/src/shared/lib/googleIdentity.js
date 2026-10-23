@@ -1,7 +1,6 @@
 /**
  * Google Identity Services adapter (real mode). Loads the GIS script on demand and renders
  * Google's own button; the returned id token is exchanged with the API (POST /auth/google).
- * Mock mode never calls this: it uses a built-in account chooser instead.
  */
 const SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
 let loading = null;

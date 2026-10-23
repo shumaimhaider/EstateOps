@@ -29,10 +29,6 @@ const API = {
   group: ['**/shared/api/**'],
   message: 'Only features/*/data may import shared/api (clients, DTOs, mappers).',
 };
-const MOCKS = {
-  group: ['**/mocks/**'],
-  message: 'mocks/ is imported only by the bootstrap (main.jsx) and src/test.',
-};
 const FEATURE_DEEP = {
   group: ['**/features/*/**', '!**/features/*/index.js'],
   message: 'Import a feature only through its index.js.',
@@ -40,10 +36,6 @@ const FEATURE_DEEP = {
 const OUTER = {
   group: ['**/features/**', '**/pages/**', '**/app/**'],
   message: 'shared/ must not import features, pages or app.',
-};
-const MOCK_OUTER = {
-  group: ['**/features/**', '**/pages/**', '**/app/**', '**/shared/**'],
-  message: 'mocks/ stands in for the server and imports nothing from the app.',
 };
 const otherFeatures = (name) => {
   const others = FEATURES.filter((f) => f !== name);
@@ -66,12 +58,11 @@ const featureZones = FEATURES.flatMap((f) => [
     [`src/features/${f}/{components,schemas,domain}/**/*.{js,jsx}`],
     DATA,
     API,
-    MOCKS,
     otherFeatures(f),
   ),
-  restrict([`src/features/${f}/hooks/**/*.{js,jsx}`], HOOK_DATA, API, MOCKS, otherFeatures(f)),
-  restrict([`src/features/${f}/data/**/*.{js,jsx}`], MOCKS, otherFeatures(f)),
-  restrict([`src/features/${f}/*.{js,jsx}`], MOCKS, otherFeatures(f)),
+  restrict([`src/features/${f}/hooks/**/*.{js,jsx}`], HOOK_DATA, API, otherFeatures(f)),
+  restrict([`src/features/${f}/data/**/*.{js,jsx}`], otherFeatures(f)),
+  restrict([`src/features/${f}/*.{js,jsx}`], otherFeatures(f)),
 ]);
 
 /* No ad-hoc role checks and no import.meta.env outside the config module. */
@@ -88,7 +79,7 @@ const ENV_READ = {
 
 export default [
   {
-    ignores: ['dist', 'coverage', 'node_modules', 'public/mockServiceWorker.js'],
+    ignores: ['dist', 'coverage', 'node_modules'],
   },
   js.configs.recommended,
   {
@@ -124,20 +115,15 @@ export default [
     rules: { 'no-restricted-syntax': ['error', ROLE_CHECK] },
   },
 
-  // The mock server stands in for the real back end, which legitimately resolves users by role.
-  { files: ['src/mocks/**/*.js'], rules: { 'no-restricted-syntax': ['error', ENV_READ] } },
-
   // Zones: app / pages compose features through their public index only.
   restrict(
     ['src/pages/**/*.{js,jsx}', 'src/widgets/**/*.{js,jsx}', 'src/app/**/*.{js,jsx}'],
     DATA,
     API,
-    MOCKS,
     FEATURE_DEEP,
   ),
-  restrict(['src/shared/{ui,lib,i18n,config}/**/*.{js,jsx}'], API, MOCKS, OUTER),
-  restrict(['src/shared/api/**/*.{js,jsx}'], MOCKS, OUTER),
-  restrict(['src/mocks/**/*.{js,jsx}'], MOCK_OUTER),
+  restrict(['src/shared/{ui,lib,i18n,config}/**/*.{js,jsx}'], API, OUTER),
+  restrict(['src/shared/api/**/*.{js,jsx}'], OUTER),
   ...featureZones,
 
   prettier,

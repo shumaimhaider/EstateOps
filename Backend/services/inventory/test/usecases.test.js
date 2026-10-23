@@ -23,11 +23,14 @@ import { ListUnits } from '../src/units/application/ListUnits.js';
 import { GetUnit } from '../src/units/application/GetUnit.js';
 import { ActOnUnit } from '../src/units/application/ActOnUnit.js';
 import { AddUnitMedia } from '../src/units/application/AddUnitMedia.js';
+import { RequestUnitMediaUpload } from '../src/units/application/RequestUnitMediaUpload.js';
+import { RequestProjectMapUpload } from '../src/projects/application/RequestProjectMapUpload.js';
+import { ConfirmProjectMap } from '../src/projects/application/ConfirmProjectMap.js';
 import { RemoveUnitMedia } from '../src/units/application/RemoveUnitMedia.js';
 import { ReserveUnit } from '../src/units/application/ReserveUnit.js';
 import { FollowBooking } from '../src/units/application/FollowBooking.js';
 import { ApplyTenant } from '../src/tenants/application/ApplyTenant.js';
-import { UNIT_FIELDS, actor, buildInventoryTest } from './fakes.js';
+import { UNIT_FIELDS, actor, buildInventoryTest, putFile } from './fakes.js';
 
 const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const booking = (type, bookingId, unitId, tenantId = TEST_TENANT_A) =>
@@ -462,38 +465,143 @@ describe('inventory use cases', () => {
         new ActOnUnit(t.deps).execute({ actor: owner, id: u.id, action: 'sell' }),
       ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
     });
+    const photo = { filename: 'Living Room.JPG', contentType: 'image/jpeg', size: 2048 };
+    const addPicture = async (unitId, kind = 'image', over = {}) => {
+      const { assetId } = await new RequestUnitMediaUpload(t.deps).execute({
+        actor: owner,
+        unitId,
+        kind,
+        ...photo,
+        ...over,
+      });
+      putFile(t, assetId);
+      return new AddUnitMedia(t.deps).execute({
+        actor: owner,
+        unitId,
+        kind,
+        assetId,
+        caption: 'Living',
+      });
+    };
     it('keeps pictures for flats, shops and villas, not plots, in order', async () => {
       const plot = await unitIn();
       const flat = await unitIn({ unitNo: 'T-1', kind: 'flat' });
       await expect(
-        new AddUnitMedia(t.deps).execute({
+        new RequestUnitMediaUpload(t.deps).execute({
           actor: owner,
           unitId: plot.id,
           kind: 'image',
-          url: 'https://cdn.test/a.jpg',
+          ...photo,
         }),
       ).rejects.toMatchObject({ code: 'NO_MEDIA_ON_PLOTS' });
-      const a = await new AddUnitMedia(t.deps).execute({
-        actor: owner,
-        unitId: flat.id,
-        kind: 'image',
-        url: 'https://cdn.test/a.jpg',
-        caption: 'Living',
-      });
-      const b = await new AddUnitMedia(t.deps).execute({
-        actor: owner,
-        unitId: flat.id,
-        kind: 'floor_plan',
-        url: 'https://cdn.test/b.jpg',
-      });
+      const a = await addPicture(flat.id);
+      const b = await addPicture(flat.id, 'floor_plan');
       expect([a.sortOrder, b.sortOrder]).toEqual([0, 1]);
+      expect(a.asset).toMatchObject({ status: 'ready', storedName: 'living-room.jpg' });
       expect((await new GetUnit(t.deps).execute({ actor: owner, id: flat.id })).media).toHaveLength(
         2,
       );
+      const key = t.files.objectKey(a.asset);
+      expect(await t.files.storage.head(key)).not.toBeNull();
       await new RemoveUnitMedia(t.deps).execute({ actor: owner, unitId: flat.id, mediaId: a.id });
+      expect(await t.files.storage.head(key)).toBeNull();
+      expect(t.stores.files.get(a.asset.id).status).toBe('deleted');
       await expect(
         new RemoveUnitMedia(t.deps).execute({ actor: owner, unitId: flat.id, mediaId: a.id }),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+    it('refuses bad uploads and unconfirmed or reused ones', async () => {
+      const flat = await unitIn({ unitNo: 'T-2', kind: 'flat' });
+      const ask = (over) =>
+        new RequestUnitMediaUpload(t.deps).execute({
+          actor: owner,
+          unitId: flat.id,
+          kind: 'image',
+          ...photo,
+          ...over,
+        });
+      await expect(ask({ contentType: 'application/pdf' })).rejects.toMatchObject({
+        code: 'VALIDATION_ERROR',
+      });
+      await expect(ask({ size: 50 * 1024 * 1024 })).rejects.toMatchObject({
+        code: 'VALIDATION_ERROR',
+      });
+      await expect(ask({ kind: 'video' })).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+      const add = (assetId, over = {}) =>
+        new AddUnitMedia(t.deps).execute({
+          actor: owner,
+          unitId: flat.id,
+          kind: 'image',
+          assetId,
+          ...over,
+        });
+      const first = await ask({});
+      await expect(add(first.assetId)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' }); // not uploaded
+      putFile(t, first.assetId, { size: 1 });
+      await expect(add(first.assetId)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' }); // wrong size
+      putFile(t, first.assetId);
+      await add(first.assetId);
+      await expect(add(first.assetId)).rejects.toMatchObject({ code: 'UPLOAD_ALREADY_USED' });
+      await expect(add(uuid(9))).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      await expect(add('not-a-uuid')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      const other = await unitIn({ unitNo: 'T-3', kind: 'flat' });
+      const forOther = await new RequestUnitMediaUpload(t.deps).execute({
+        actor: owner,
+        unitId: other.id,
+        kind: 'image',
+        ...photo,
+      });
+      putFile(t, forOther.assetId);
+      await expect(add(forOther.assetId)).rejects.toMatchObject({ code: 'NOT_FOUND' }); // another unit's upload
+    });
+    it('uploads a project site map and replaces the previous one', async () => {
+      const map = { filename: 'plan.png', contentType: 'image/png', size: 4096 };
+      const get = () => new GetProjectMap(t.deps).execute({ actor: owner, id: project.id });
+      expect((await get()).mapAsset).toBeNull();
+      const one = await new RequestProjectMapUpload(t.deps).execute({
+        actor: owner,
+        projectId: project.id,
+        ...map,
+      });
+      putFile(t, one.assetId);
+      await new ConfirmProjectMap(t.deps).execute({
+        actor: owner,
+        projectId: project.id,
+        assetId: one.assetId,
+      });
+      expect((await get()).mapAsset.id).toBe(one.assetId);
+      const two = await new RequestProjectMapUpload(t.deps).execute({
+        actor: owner,
+        projectId: project.id,
+        ...map,
+        filename: 'plan2.png',
+      });
+      putFile(t, two.assetId);
+      const oldKey = t.files.objectKey(t.stores.files.get(one.assetId));
+      await new ConfirmProjectMap(t.deps).execute({
+        actor: owner,
+        projectId: project.id,
+        assetId: two.assetId,
+      });
+      expect((await get()).mapAsset.id).toBe(two.assetId);
+      expect(await t.files.storage.head(oldKey)).toBeNull();
+      await expect(
+        new RequestProjectMapUpload(t.deps).execute({ actor: owner, projectId: uuid(5), ...map }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      await expect(
+        new ConfirmProjectMap(t.deps).execute({
+          actor: owner,
+          projectId: project.id,
+          assetId: uuid(6),
+        }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      await expect(
+        new RequestProjectMapUpload(t.deps).execute({
+          actor: actor('sales_agent'),
+          projectId: project.id,
+          ...map,
+        }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
     it('needs the right permission for every operation', async () => {
       const u = await unitIn();
@@ -518,7 +626,16 @@ describe('inventory use cases', () => {
             actor: agent,
             unitId: u.id,
             kind: 'image',
-            url: 'https://x.test/a',
+            assetId: uuid(1),
+          }),
+        () =>
+          new RequestUnitMediaUpload(t.deps).execute({
+            actor: agent,
+            unitId: u.id,
+            kind: 'image',
+            filename: 'a.jpg',
+            contentType: 'image/jpeg',
+            size: 1,
           }),
       ];
       for (const run of denied) await expect(run()).rejects.toMatchObject({ code: 'FORBIDDEN' });

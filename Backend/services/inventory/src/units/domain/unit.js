@@ -157,25 +157,21 @@ export function sellUnit(unit, bookingId) {
   return { ...unit, status: unitMachine.transition(unit.status, 'sell') };
 }
 
-/** Pictures exist for flats, shops and villas, never plots. */
+/** Pictures exist for flats, shops and villas, never plots. The file itself is a file_asset. */
 export function createMedia(
-  { tenantId, unit, kind, url, caption = null, sortOrder = 0 },
+  { tenantId, unit, kind, fileId, caption = null, sortOrder = 0 },
   { id = newId() } = {},
 ) {
   if (unit.kind === 'plot')
     throw new ConflictError('NO_MEDIA_ON_PLOTS', 'Pictures are not kept for plots');
   const v = validator('The picture could not be saved');
   v.check(['image', 'floor_plan'].includes(kind), 'kind', 'Choose image or floor plan');
-  v.check(
-    isNonEmptyString(url ?? '', 500) && /^https?:\/\//i.test(url),
-    'url',
-    'Enter a web address starting with http',
-  );
+  v.check(isNonEmptyString(fileId ?? '', 40), 'file', 'Upload a file first');
   v.check(
     caption === null || (typeof caption === 'string' && caption.length <= 120),
     'caption',
     'Caption is too long',
   );
   v.done();
-  return { id, tenantId, unitId: unit.id, kind, url, caption, sortOrder };
+  return { id, tenantId, unitId: unit.id, kind, fileId, caption, sortOrder };
 }

@@ -24,8 +24,12 @@
     "escalations": { "view": "See escalated cases" },
     "projects": { "view": "See projects" },
     "units": { "view": "See units" },
+    "inventory": { "manage": "Upload unit pictures and project site maps" },
     "sales": { "view": "See sales and invoices" },
-    "customers": { "view": "See customers" },
+    "customers": {
+      "view": "See customers",
+      "manage": "Reply to support requests and manage customers' portal access"
+    },
     "payments": {
       "record": "Mark payments received",
       "card": "Take card payments"

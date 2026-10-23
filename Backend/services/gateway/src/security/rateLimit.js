@@ -30,9 +30,28 @@ export function createRateLimiter({ windowMs = 60_000, max, now = () => Date.now
   };
 }
 
+/**
+ * The same limiter, counted in Redis so every gateway replica shares one count and the limit is
+ * exact however many replicas run. If Redis is out, each replica falls back to its own in-memory
+ * count (a safe upper bound), so rate limiting never takes the gateway down.
+ */
+export function createSharedRateLimiter({ cache, scope, max, windowMs = 60_000, fallback }) {
+  return {
+    async take(key) {
+      const hit = await cache.hit(`rl:${scope}:${key}`, windowMs);
+      if (hit.skipped) return fallback.take(key);
+      return {
+        allowed: hit.count <= max,
+        remaining: Math.max(0, max - hit.count),
+        retryAfterSeconds: Math.max(1, Math.ceil(hit.ttlMs / 1000)),
+      };
+    },
+  };
+}
+
 /** Express middleware: 429 with Retry-After when the key is over its limit. */
-export const rateLimit = (limiter, keyOf) => (req, res, next) => {
-  const result = limiter.take(keyOf(req));
+export const rateLimit = (limiter, keyOf) => async (req, res, next) => {
+  const result = await limiter.take(keyOf(req));
   res.set('X-RateLimit-Remaining', String(result.remaining));
   if (result.allowed) return next();
   res.set('Retry-After', String(result.retryAfterSeconds));

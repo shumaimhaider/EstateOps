@@ -1,0 +1,72 @@
+{
+  "title": "My properties",
+  "greeting": "Hello, {{name}}",
+  "subtitle": "Everything you have bought from {{developer}} and where each payment stands.",
+  "loadError": "Could not load your properties",
+  "emptyTitle": "No properties yet",
+  "emptyBody": "When you buy a property from {{developer}} it appears here.",
+  "kind": { "plot": "Plot", "flat": "Flat", "villa": "Villa", "shop": "Shop" },
+  "attention": {
+    "overdue": "Payment overdue",
+    "due": "Payment due",
+    "complete": "Fully paid",
+    "ontrack": "On track"
+  },
+  "summary": {
+    "label": "Your payments at a glance",
+    "paid": "Paid so far",
+    "of": "Across {{count}} properties",
+    "pending": "Still to pay",
+    "overdue": "Overdue",
+    "overdueHint": "Pay these first to avoid fines",
+    "onTime": "Nothing is late",
+    "nextDue": "Next payment due"
+  },
+  "card": {
+    "title": "{{kind}} {{unit}}",
+    "paidOf": "Paid",
+    "progress": "Share of {{unit}} paid",
+    "pending": "Still to pay",
+    "overdue": "Overdue",
+    "nextDue": "Next due",
+    "installments": "{{paid}} of {{total}} installments paid · {{overdue}} overdue · {{upcoming}} upcoming"
+  },
+  "detail": {
+    "back": "All properties",
+    "plan": "Payment plan",
+    "bookedOn": "Booked on",
+    "price": "Price",
+    "tabs": "Property sections",
+    "schedule": "Payment schedule",
+    "contracts": "Contracts",
+    "history": "Card payments",
+    "payNext": "Pay next installment",
+    "nothingToPay": "Nothing to pay right now",
+    "notFound": "Property not found"
+  },
+  "schedule": {
+    "label": "Payment schedule",
+    "invoice": "Invoice",
+    "due": "Due",
+    "amount": "Amount",
+    "paid": "Paid",
+    "balance": "Balance",
+    "status": "Status",
+    "actions": "Actions",
+    "down": "Down payment",
+    "installment": "Installment {{n}}",
+    "fine": "Fine",
+    "receipt": "Receipt {{no}}",
+    "daysLate_one": "{{count}} day late",
+    "daysLate_other": "{{count}} days late",
+    "pay": "Pay",
+    "payLabel": "Pay {{invoice}}"
+  },
+  "invoice": {
+    "scheduled": "Scheduled",
+    "due": "Due",
+    "paid": "Paid",
+    "overdue": "Overdue",
+    "waived": "Waived"
+  }
+}

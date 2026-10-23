@@ -142,6 +142,23 @@ describe.skipIf(!available)('sales on PostgreSQL', () => {
       expect(found.createdAt).toBeInstanceOf(Date);
     });
 
+    it('lists bookings stuck in requested or confirmed past a cutoff, oldest first', async () => {
+      const old = await mkBooking();
+      const fresh = await mkBooking();
+      const done = await mkBooking();
+      await ds.query(
+        "UPDATE sales.booking SET updated_at = now() - interval '1 hour' WHERE id = $1",
+        [old.id],
+      );
+      await ds.query(
+        "UPDATE sales.booking SET updated_at = now() - interval '1 hour', status = 'active' WHERE id = $1",
+        [done.id],
+      );
+      const stuck = await run((r) => r.bookings.listStuck(new Date(Date.now() - 10 * 60_000), 10));
+      expect(stuck).toEqual([{ id: old.id, tenantId: old.tenantId }]);
+      expect(stuck.map((s) => s.id)).not.toContain(fresh.id);
+    });
+
     it('guards updates with the version', async () => {
       const b = await mkBooking();
       const saved = await run((r) => r.bookings.update({ ...b, status: 'confirmed' }));

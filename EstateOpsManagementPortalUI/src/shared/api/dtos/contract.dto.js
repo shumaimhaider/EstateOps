@@ -35,3 +35,10 @@ export const pandaDocWriteDtoSchema = z.object({
 
 /** POST /contracts/{id}/revise */
 export const reviseWriteDtoSchema = z.object({ note: z.string().min(1) });
+
+/** An embedded signing session for the buyer. The address only works for a short while. */
+export const signingSessionDtoSchema = z.object({
+  contract_id: z.string(),
+  url: z.string().url(),
+  expires_at: z.string(),
+});

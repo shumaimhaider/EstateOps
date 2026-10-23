@@ -10,11 +10,22 @@ import { invoiceShape } from '../domain/installment.model.js';
 import PaymentForm from './PaymentForm.jsx';
 
 /**
- * Take a payment on a customer's behalf, by marking it received or by card. `invoices` are the
- * payable choices: one invoice from a row action, or all of a customer's unpaid invoices.
- * `onSubmit({ mode, payment, card })` must reject with the server error so field errors show inline.
+ * Take a payment on a customer's behalf: mark it received, pay on Stripe's card form, or charge the
+ * customer's saved card. `invoices` are the payable choices: one invoice from a row action, or all of
+ * a customer's unpaid invoices. `onSubmit({ mode, payment, saveCard })` must reject with the server
+ * error so field errors show inline. When a card checkout is open, `checkout` is set and
+ * `renderCheckout(checkout)` supplies the embedded Stripe form in place of the form.
  */
-export default function PayInvoiceDialog({ open, invoices, initialInvoiceId, onClose, onSubmit }) {
+export default function PayInvoiceDialog({
+  open,
+  invoices,
+  initialInvoiceId,
+  savedCard = null,
+  checkout = null,
+  renderCheckout = () => null,
+  onClose,
+  onSubmit,
+}) {
   const { t } = useTranslation('collections');
   const { locale } = useTenant();
   const [chosen, setChosen] = useState(null);
@@ -23,14 +34,19 @@ export default function PayInvoiceDialog({ open, invoices, initialInvoiceId, onC
   const selected =
     invoices.find((i) => i.id === (chosen ?? initialInvoiceId)) ?? invoices[0] ?? null;
   const modes = selected
-    ? [canMarkReceived(selected) && 'manual', canPayByCard(selected) && 'card'].filter(Boolean)
+    ? [
+        canMarkReceived(selected) && 'manual',
+        canPayByCard(selected) && 'card',
+        canPayByCard(selected) && savedCard && 'saved',
+      ].filter(Boolean)
     : [];
   const mode = modes.includes(chosenMode) ? chosenMode : modes[0];
   const currency = selected?.balance.currency ?? 'PKR';
 
   return (
     <Dialog open={open && Boolean(selected)} onClose={onClose} title={t('pay.title')}>
-      {selected && mode && (
+      {checkout && <div className="pt-1">{renderCheckout(checkout)}</div>}
+      {!checkout && selected && mode && (
         <>
           <p className="mb-4 rounded-xl bg-primary-soft p-3 text-sm">
             {t('pay.summary', {
@@ -80,6 +96,14 @@ export default function PayInvoiceDialog({ open, invoices, initialInvoiceId, onC
             key={`${selected.id}-${mode}`}
             invoice={selected}
             mode={mode}
+            savedCardLabel={
+              savedCard
+                ? t('pay.saved.with', {
+                    brand: savedCard.brand.charAt(0).toUpperCase() + savedCard.brand.slice(1),
+                    last4: savedCard.last4,
+                  })
+                : undefined
+            }
             onCancel={onClose}
             onSubmit={(values) => onSubmit({ mode, ...values })}
           />
@@ -93,6 +117,9 @@ PayInvoiceDialog.propTypes = {
   open: PropTypes.bool.isRequired,
   invoices: PropTypes.arrayOf(invoiceShape).isRequired,
   initialInvoiceId: PropTypes.string,
+  savedCard: PropTypes.shape({ brand: PropTypes.string, last4: PropTypes.string }),
+  checkout: PropTypes.object,
+  renderCheckout: PropTypes.func,
   onClose: PropTypes.func.isRequired,
   onSubmit: PropTypes.func.isRequired,
 };

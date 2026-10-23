@@ -7,7 +7,7 @@ import {
   encodeCursor,
   parseSort,
 } from '@estateops/kernel';
-import { silentLogger } from '@estateops/platform';
+import { createMemoryMailer, silentLogger } from '@estateops/platform';
 import { TEST_TENANT_A, createFakeUow, createTestAuth } from '@estateops/platform/testing';
 import { composeCustomer } from '../src/main/compose.js';
 import { CUSTOMER_SORT_FIELDS } from '../src/customers/application/ListCustomers.js';
@@ -16,7 +16,13 @@ const ci = (s) => String(s ?? '').toLowerCase();
 
 /** In-memory customer repositories: same uniqueness, versions, and sum-over-bookings totals as SQL. */
 export function makeCustomerRepos() {
-  const s = { customers: new Map(), summaries: new Map(), tenantRefs: new Map() };
+  const s = {
+    customers: new Map(),
+    summaries: new Map(),
+    tenantRefs: new Map(),
+    requests: new Map(),
+    messages: [],
+  };
   const inTenant = (t) => [...s.customers.values()].filter((c) => c.tenantId === t);
   const clone = (x) => (x ? structuredClone(x) : null);
 
@@ -97,7 +103,58 @@ export function makeCustomerRepos() {
     stores: s,
     repos: {
       customers,
+      support: {
+        insert: async (r, m) => {
+          s.requests.set(r.id, { ...r });
+          s.messages.push({ ...m });
+        },
+        addMessage: async (m) => void s.messages.push({ ...m }),
+        save: async (r) => void Object.assign(s.requests.get(r.id), r),
+        findById: async (t, id) => {
+          const r = s.requests.get(id);
+          if (!r || r.tenantId !== t) return null;
+          return { ...r, customerName: s.customers.get(r.customerId)?.fullName };
+        },
+        messages: async (id) =>
+          s.messages
+            .filter((m) => m.requestId === id)
+            .map((m) => ({ ...m }))
+            .sort((a, b) => a.createdAt - b.createdAt),
+        countOpen: async (t, c) =>
+          [...s.requests.values()].filter(
+            (r) => r.tenantId === t && r.customerId === c && r.status !== 'closed',
+          ).length,
+        countWaiting: async (t) =>
+          [...s.requests.values()].filter((r) => r.tenantId === t && r.status === 'open').length,
+        list: async (t, f) => {
+          const rows = [...s.requests.values()]
+            .filter(
+              (r) =>
+                r.tenantId === t &&
+                (!f.customerId || r.customerId === f.customerId) &&
+                (!f.status || r.status === f.status) &&
+                (!f.q || r.subject.toLowerCase().includes(f.q.toLowerCase())),
+            )
+            .sort((a, b) => b.lastMessageAt - a.lastMessageAt || b.id.localeCompare(a.id));
+          const start = f.cursor ? rows.findIndex((r) => r.id === f.cursor.id) + 1 : 0;
+          const limit = f.limit ?? 25;
+          const items = rows.slice(start, start + limit).map((r) => ({
+            ...r,
+            customerName: s.customers.get(r.customerId)?.fullName,
+            messageCount: s.messages.filter((m) => m.requestId === r.id).length,
+          }));
+          const more = start + limit < rows.length;
+          return {
+            items,
+            next: more ? { at: items.at(-1).lastMessageAt, id: items.at(-1).id } : null,
+          };
+        },
+      },
       bookingSummaries: {
+        ownedBy: async (t, c, b) => {
+          const x = s.summaries.get(b);
+          return Boolean(x && x.tenantId === t && x.customerId === c && !x.cancelled);
+        },
         upsert: async (x) => {
           const cur = s.summaries.get(x.bookingId);
           if (cur && (cur.seq >= x.seq || cur.cancelled)) return false;
@@ -125,6 +182,7 @@ export function makeCustomerRepos() {
 export const clock = { now: () => new Date('2026-10-21T09:00:00.000Z') };
 
 export async function buildCustomerTest() {
+  const mailer = createMemoryMailer();
   const memory = makeCustomerRepos();
   memory.stores.tenantRefs.set(TEST_TENANT_A, {
     tenantId: TEST_TENANT_A,
@@ -139,8 +197,10 @@ export async function buildCustomerTest() {
     verifier: auth.verifier,
     logger: silentLogger,
     internalToken: 'test-internal-token',
+    mailer,
+    supportEmail: 'support@zameen.test',
   };
-  return { ...memory, ...fake, auth, deps, app: composeCustomer(deps) };
+  return { ...memory, ...fake, auth, mailer, deps, app: composeCustomer(deps) };
 }
 
 export const actor = (role = 'owner', over = {}) => ({

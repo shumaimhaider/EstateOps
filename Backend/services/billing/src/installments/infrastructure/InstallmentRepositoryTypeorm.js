@@ -198,6 +198,15 @@ export class InstallmentRepositoryTypeorm {
     return rowsOf(result).map((r) => ({ id: r.id, bookingId: r.booking_id, status: r.status }));
   }
 
+  /** Has any money been received on this booking? The authority sales asks before it cancels one. */
+  async hasPayments(tenantId, bookingId) {
+    const rows = await this.manager.query(
+      'SELECT 1 FROM billing.installment WHERE tenant_id = $1 AND booking_id = $2 AND paid_amount > 0 LIMIT 1',
+      [tenantId, bookingId],
+    );
+    return rowsOf(rows).length > 0;
+  }
+
   async cancelUnpaidOfBooking(tenantId, bookingId) {
     const result = await this.manager.query(
       `UPDATE billing.installment SET status = 'cancelled', updated_at = now(), version = version + 1

@@ -1,0 +1,16 @@
+{
+  "_shared/0001_shared_housekeeping": "9edde249d6fe5749c018e0b8ae0b23d4f97ac6b6f5cc68d9c6fcb0773a963fb2",
+  "_shared/0002_file_asset_installer": "9f1fa9aad7f849dd5c715a0ad2a214913adba202e74c13a6d258dc5aa052f59c",
+  "billing/0001_initial": "7af6a2b7b95b250434167b1e083758e4949111f7f72cf9f2f93cde04d70dcb38",
+  "billing/0002_stripe_checkout": "c64e5b03dcdb1114e18fa99e7537f60be69095d26554bb9c66a93a8d0a27dec6",
+  "billing/0003_collection_and_email": "a56a4c92f8daf474220cedcd9699cd3c8b2fc3cc8444017a6df787700a23ce2d",
+  "billing/0004_collection_attempts": "a3b21dc6beacc7ed144a1a18851aab960d09258954badeebd0be1483c6660c47",
+  "contract/0001_initial": "6f7d85ebd1cb9e5aef4666661b98f77a9391dd21937832c7e9459f88a278698a",
+  "customer/0001_initial": "7e7d42f2548638ec0a90fb009622af779fe9c461657b9951eadc22c4ade21afd",
+  "customer/0002_support_requests": "31410bd2bcb156db4dc9bc9c8fd814e2cc11153be6e60b140ad3ce9223b13283",
+  "identity/0001_initial": "20e997a9b28874f3d5f338d89a79eb5409960f88c2853635d71fc869c48ddf02",
+  "identity/0002_customer_accounts": "4dd3dd968eb94273d9575a6260894893cb54c8b7187b70e4581089099ea48fbb",
+  "inventory/0001_initial": "31ef2f5fafa4de10f16318f554245e8f2819fcccd80aa5eafecd058c63cdba96",
+  "inventory/0002_file_storage": "2179a595237fde5219db5c30255689a20715206a7ce7341ca0e27c00eb674f1f",
+  "sales/0001_initial": "d741f8ca62816a1004b28a894f92fa163f3db89d8a9a3eedcf239ee0f612caef"
+}

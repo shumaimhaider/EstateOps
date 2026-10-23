@@ -8,7 +8,7 @@ import {
   parseSort,
 } from '@estateops/kernel';
 import { createFakeUow, createTestAuth, TEST_TENANT_A } from '@estateops/platform/testing';
-import { silentLogger } from '@estateops/platform';
+import { createCache, createFilesKit, createMemoryClient, silentLogger } from '@estateops/platform';
 import { composeInventory } from '../src/main/compose.js';
 import { UNIT_SORT_FIELDS } from '../src/units/application/ListUnits.js';
 
@@ -34,6 +34,7 @@ export function makeInventoryRepos() {
     units: new Map(),
     history: [],
     media: [],
+    files: new Map(),
     tenantRefs: new Map(),
   };
   const clone = (x) => (x ? structuredClone(x) : null);
@@ -247,12 +248,36 @@ export function makeInventoryRepos() {
     },
     unitMedia: {
       add: async (m) => void s.media.push({ ...m }),
-      list: async (unitId) => s.media.filter((m) => m.unitId === unitId),
+      list: async (unitId) =>
+        s.media
+          .filter((m) => m.unitId === unitId)
+          .map((m) => ({ ...m, asset: s.files.get(m.fileId) ?? null })),
       remove: async (_t, unitId, mediaId) => {
-        const before = s.media.length;
-        s.media = s.media.filter((m) => !(m.unitId === unitId && m.id === mediaId));
-        return s.media.length < before;
+        const found = s.media.find((m) => m.unitId === unitId && m.id === mediaId);
+        s.media = s.media.filter((m) => m !== found);
+        return found ? { id: found.id, fileId: found.fileId } : null;
       },
+    },
+    fileAssets: {
+      insert: async (a) => void s.files.set(a.id, { ...a }),
+      findById: async (t, id) => {
+        const f = s.files.get(id);
+        return f && f.tenantId === t ? { ...f } : null;
+      },
+      setStatus: async (_t, id, status) => {
+        s.files.get(id).status = status;
+      },
+      latestReady: async (t, type, id, purpose) =>
+        [...s.files.values()]
+          .reverse()
+          .find(
+            (f) =>
+              f.tenantId === t &&
+              f.ownerType === type &&
+              f.ownerId === id &&
+              f.purpose === purpose &&
+              f.status === 'ready',
+          ) ?? null,
     },
     tenantRefs: {
       get: async (t) => s.tenantRefs.get(t) ?? null,
@@ -271,7 +296,7 @@ export const fixedNow = () => new Date('2026-10-21T09:00:00.000Z');
 export const clock = { now: fixedNow };
 
 /** Wires the whole inventory service over fakes. The tenant starts with a PKR currency copy. */
-export async function buildInventoryTest({ seedTenant = true } = {}) {
+export async function buildInventoryTest({ seedTenant = true, withCache = false } = {}) {
   const memory = makeInventoryRepos();
   const fake = createFakeUow(() => memory.repos);
   const auth = await createTestAuth();
@@ -287,14 +312,21 @@ export async function buildInventoryTest({ seedTenant = true } = {}) {
       sourceAt: '2026-10-20T00:00:00.000Z',
     });
   }
+  const files = createFilesKit({ STORAGE_PUBLIC_BASE_URL: 'https://cdn.test/bucket' });
+  const cacheClient = withCache ? createMemoryClient() : null;
+  const cache = cacheClient
+    ? createCache({ client: cacheClient, logger: silentLogger })
+    : undefined;
   const deps = {
     uow: fake.uow,
     clock,
     verifier: auth.verifier,
     logger: silentLogger,
     internalToken: 'test-internal-token',
+    files,
+    cache,
   };
-  return { ...memory, ...fake, auth, deps, app: composeInventory(deps) };
+  return { ...memory, ...fake, auth, deps, files, cache, cacheClient, app: composeInventory(deps) };
 }
 
 export const actor = (role = 'owner', over = {}) => ({
@@ -319,3 +351,13 @@ export const UNIT_FIELDS = {
   listPrice: 15_000_000_00,
   currency: 'PKR',
 };
+
+/** Plays the browser: puts the announced bytes into the fake bucket for an upload that was requested. */
+export function putFile(t, assetId, over = {}) {
+  const asset = t.stores.files.get(assetId);
+  t.files.storage.put(t.files.objectKey(asset), {
+    size: over.size ?? asset.size,
+    contentType: over.contentType ?? asset.contentType,
+  });
+  return asset;
+}

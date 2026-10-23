@@ -37,7 +37,8 @@ export class ProjectRepositoryTypeorm {
         throw new ConflictError('PROJECT_NAME_TAKEN', 'A project with this name already exists');
       throw error;
     }
-    return project;
+    // the database fills created_at/updated_at: hand back the row as stored
+    return (await this.findById(project.tenantId, project.id)) ?? project;
   }
 
   async findById(tenantId, id) {

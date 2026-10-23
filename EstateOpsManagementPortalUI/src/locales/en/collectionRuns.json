@@ -1,0 +1,70 @@
+{
+  "title": "Daily card collection",
+  "subtitle": "Every day the system charges the saved card of each invoice that is due. Pick a day to see which invoices were charged, which failed and why.",
+  "daysLabel": "Collection days",
+  "empty": "The automatic collection has not run yet.",
+  "emptyDay": "Nothing was attempted on this day.",
+  "emptyFiltered": "No invoices with this result on this day.",
+  "back": "All days",
+  "dayTitle": "Collection on {{date}}",
+  "open": "Open {{date}}",
+  "runFailed": "The run reported an error: {{message}}",
+  "stats": {
+    "invoices": "Invoices looked at",
+    "collected": "Collected",
+    "failed": "Failed",
+    "failedAmount": "Not collected",
+    "skipped": "Skipped",
+    "waiting": "Still processing",
+    "refunded": "Refunded"
+  },
+  "day": {
+    "succeeded": "{{count}} charged",
+    "failed": "{{count}} failed",
+    "skipped": "{{count}} skipped",
+    "waiting": "{{count}} processing",
+    "refunded": "{{count}} refunded"
+  },
+  "filter": {
+    "label": "Show",
+    "all": "All results",
+    "succeeded": "Charged",
+    "failed": "Failed",
+    "skipped": "Skipped",
+    "refunded": "Refunded",
+    "queued": "Waiting for the worker",
+    "in_progress": "Processing"
+  },
+  "status": {
+    "succeeded": "Charged",
+    "failed": "Failed",
+    "skipped": "Skipped",
+    "refunded": "Refunded",
+    "queued": "Waiting",
+    "in_progress": "Processing"
+  },
+  "funds": {
+    "sufficient": "Balance was enough",
+    "insufficient": "Insufficient balance",
+    "unknown": "Balance not known: the bank gave another reason"
+  },
+  "reason": {
+    "due": "First attempt",
+    "retry": "Retry"
+  },
+  "columns": {
+    "customer": "Customer",
+    "invoice": "Invoice",
+    "amount": "Amount",
+    "result": "Result",
+    "why": "Why",
+    "card": "Card",
+    "retry": "Next try"
+  },
+  "attempt": "Attempt {{no}}",
+  "stripeCode": "Stripe code: {{code}}",
+  "paymentIntent": "Stripe payment: {{id}}",
+  "willRetry": "Will retry on {{date}}",
+  "noRetry": "Will not retry automatically",
+  "loadMore": "Load more"
+}

@@ -1,10 +1,11 @@
 import express from 'express';
-import { actorFrom, pageResponse } from '@estateops/platform';
+import { actorFrom, customerFrom, pageResponse } from '@estateops/platform';
 import {
   cancelBookingRequest,
   createBookingRequest,
   listBookingsQuery,
   toBookingResponse,
+  toPortalPropertyResponse,
 } from './booking.dto.js';
 
 export function createBookingRoutes(uc) {
@@ -48,6 +49,30 @@ export function createBookingRoutes(uc) {
     const { reason } = cancelBookingRequest.parse(req.body ?? {});
     await uc.cancelBooking.execute({ actor: actorFrom(req), id: req.params.id, reason });
     res.json(await one(req, req.params.id));
+  });
+  return router;
+}
+
+/** The customer portal's properties: the signed-in customer's own bookings, read-only. */
+export function createPortalPropertyRoutes(uc) {
+  const router = express.Router();
+  router.get('/properties', async (req, res) => {
+    const { cursor, limit } = listBookingsQuery
+      .pick({ cursor: true, limit: true })
+      .parse(req.query);
+    res.json(
+      pageResponse(
+        await uc.listMyBookings.execute({ customer: customerFrom(req), cursor, limit }),
+        toPortalPropertyResponse,
+      ),
+    );
+  });
+  router.get('/properties/:id', async (req, res) => {
+    res.json(
+      toPortalPropertyResponse(
+        await uc.getMyBooking.execute({ customer: customerFrom(req), id: req.params.id }),
+      ),
+    );
   });
   return router;
 }

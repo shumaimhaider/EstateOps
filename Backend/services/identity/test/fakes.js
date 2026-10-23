@@ -10,7 +10,12 @@ import { createTotp } from '../src/auth/infrastructure/totp.js';
 import { createTokenService } from '../src/auth/infrastructure/tokens.js';
 import { createScryptHasher } from '../src/users/infrastructure/scryptHasher.js';
 import { composeIdentity } from '../src/main/compose.js';
-import { silentLogger } from '@estateops/platform';
+import {
+  createCache,
+  createMemoryClient,
+  createMemoryMailer,
+  silentLogger,
+} from '@estateops/platform';
 
 /** In-memory identity repositories with the same rules as the SQL ones (unique email, versions). */
 export function makeIdentityRepos(clock = { now: () => new Date() }) {
@@ -20,10 +25,25 @@ export function makeIdentityRepos(clock = { now: () => new Date() }) {
   const challenges = new Map();
   const refresh = new Map();
   const history = [];
+  const accounts = new Map();
+  const links = new Map();
+  const portalRefresh = new Map();
+  const portalHistory = [];
 
   const touch = (row) => ({ ...row, version: row.version + 1 });
   return {
-    stores: { tenants, users, grants, challenges, refresh, history },
+    stores: {
+      tenants,
+      users,
+      grants,
+      challenges,
+      refresh,
+      history,
+      accounts,
+      links,
+      portalRefresh,
+      portalHistory,
+    },
     repos: {
       tenants: {
         insert: async (t) => {
@@ -131,6 +151,81 @@ export function makeIdentityRepos(clock = { now: () => new Date() }) {
             if (t.userId === userId && !t.usedAt) t.usedAt = new Date();
         },
       },
+      customerAccounts: {
+        insert: async (a, sourceAt) => {
+          if ([...accounts.values()].some((x) => x.tenantId === a.tenantId && x.email === a.email))
+            throw new ConflictError('PORTAL_EMAIL_TAKEN', 'taken');
+          accounts.set(a.id, { ...a, sourceAt });
+          return a;
+        },
+        findById: async (t, id) =>
+          accounts.get(id)?.tenantId === t ? { ...accounts.get(id) } : null,
+        findByCustomer: async (t, c) => {
+          const a = [...accounts.values()].find((x) => x.tenantId === t && x.customerId === c);
+          return a ? { ...a } : null;
+        },
+        findByEmail: async (t, email) => {
+          const a = [...accounts.values()].find((x) => x.tenantId === t && x.email === email);
+          return a ? { ...a } : null;
+        },
+        applyProfile: async (id, { email, fullName }, sourceAt) => {
+          const a = accounts.get(id);
+          if (new Date(a.sourceAt) > new Date(sourceAt)) return false;
+          if (
+            [...accounts.values()].some(
+              (x) => x.id !== id && x.tenantId === a.tenantId && x.email === email,
+            )
+          )
+            throw new ConflictError('PORTAL_EMAIL_TAKEN', 'taken');
+          Object.assign(a, { email, fullName, sourceAt });
+          return true;
+        },
+        setPassword: async (id, hash, now) => {
+          const a = accounts.get(id);
+          Object.assign(a, {
+            passwordHash: hash,
+            passwordChangedAt: now,
+            status: a.status === 'disabled' ? 'disabled' : 'active',
+          });
+        },
+        setStatus: async (id, status) => void (accounts.get(id).status = status),
+        touchLogin: async (id, now) => void (accounts.get(id).lastLoginAt = now),
+        markInvited: async (id, now) => void (accounts.get(id).invitedAt = now),
+      },
+      accountTokens: {
+        insert: async (l) =>
+          void links.set(l.tokenHash, { ...l, usedAt: null, createdAt: clock.now() }),
+        findByHash: async (h) => (links.get(h) ? { ...links.get(h) } : null),
+        markUsed: async (id, now) => {
+          const l = [...links.values()].find((x) => x.id === id);
+          if (!l || l.usedAt) return false;
+          l.usedAt = now;
+          return true;
+        },
+        closeOpen: async (accountId, now) => {
+          for (const l of links.values())
+            if (l.accountId === accountId && !l.usedAt) l.usedAt = now;
+        },
+        countSince: async (accountId, since) =>
+          [...links.values()].filter((l) => l.accountId === accountId && l.createdAt >= since)
+            .length,
+      },
+      customerRefreshTokens: {
+        insert: async (t) => void portalRefresh.set(t.tokenHash, { ...t, usedAt: null }),
+        findByHash: async (h) => (portalRefresh.get(h) ? { ...portalRefresh.get(h) } : null),
+        markUsed: async (id, now) => {
+          const t = [...portalRefresh.values()].find((x) => x.id === id);
+          if (!t || t.usedAt) return false;
+          t.usedAt = now;
+          return true;
+        },
+        revokeByHash: async (h) => void portalRefresh.delete(h),
+        revokeAllForAccount: async (accountId) => {
+          for (const [k, t] of portalRefresh)
+            if (t.accountId === accountId) portalRefresh.delete(k);
+        },
+      },
+      customerLogins: { record: async (e) => void portalHistory.push({ ...e, at: clock.now() }) },
       loginHistory: {
         record: async (e) => void history.push({ ...e, at: clock.now() }),
         countFailures: async (userId, method, since) =>
@@ -169,11 +264,16 @@ export const TENANT_BODY = {
 };
 
 /** Everything the use cases and the HTTP app need, wired with fakes and real crypto. */
-export async function buildIdentityTest() {
+export async function buildIdentityTest({ withCache = false } = {}) {
   const clock = movableClock();
   const memory = makeIdentityRepos(clock);
   const fake = createFakeUow(() => memory.repos);
   const auth = await createTestAuth();
+  const cacheClient = withCache ? createMemoryClient({ now: () => clock.now().getTime() }) : null;
+  const cache = cacheClient
+    ? createCache({ client: cacheClient, logger: silentLogger, now: () => clock.now().getTime() })
+    : null;
+  const mailer = createMemoryMailer();
   const deps = {
     uow: fake.uow,
     clock,
@@ -185,6 +285,19 @@ export async function buildIdentityTest() {
     logger: silentLogger,
     internalToken: 'test-internal-token',
     bootstrapToken: 'test-bootstrap-token',
+    cache,
+    mailer,
+    portalUrl: 'https://portal.test',
   };
-  return { ...memory, ...fake, auth, clock, deps, app: composeIdentity(deps) };
+  return {
+    ...memory,
+    ...fake,
+    auth,
+    clock,
+    cache,
+    cacheClient,
+    mailer,
+    deps,
+    app: composeIdentity(deps),
+  };
 }

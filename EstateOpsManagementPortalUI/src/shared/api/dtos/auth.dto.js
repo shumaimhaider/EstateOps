@@ -35,11 +35,3 @@ export const tokensDtoSchema = z.object({
 });
 
 export const logoutDtoSchema = z.object({ ok: z.boolean() });
-
-/** Mock-mode only: seeded accounts offered on the login page and in the Google chooser. */
-export const devAccountDtoSchema = z.object({
-  email: z.string(),
-  name: z.string(),
-  role: z.string(),
-  tenant_name: z.string(),
-});

@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { createJwtVerifier, createLogger, startService } from '@estateops/platform';
+import {
+  CACHE_ENV,
+  createCacheFromConfig,
+  createJwtVerifier,
+  createLogger,
+  startService,
+} from '@estateops/platform';
 
 /** The gateway has no database, so it reads its own small set of settings. */
 const env = z
@@ -13,6 +19,7 @@ const env = z
     CORS_ORIGINS: z.string().default(''),
     RATE_LIMIT_PER_USER_PER_MINUTE: z.coerce.number().int().positive().default(600),
     RATE_LIMIT_PER_ADDRESS_PER_MINUTE: z.coerce.number().int().positive().default(60),
+    ...CACHE_ENV,
     UPSTREAM_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
     UPSTREAM_IDENTITY: z.string().url(),
     UPSTREAM_INVENTORY: z.string().url(),
@@ -44,6 +51,8 @@ const app = composeGateway({
   perAddressPerMinute: env.RATE_LIMIT_PER_ADDRESS_PER_MINUTE,
   upstreamTimeoutMs: env.UPSTREAM_TIMEOUT_MS,
   hsts: env.NODE_ENV === 'production',
+  // Redis shares the rate-limit counts between replicas; without REDIS_URL each replica counts alone
+  cache: env.REDIS_URL ? createCacheFromConfig(env, { logger }) : null,
 });
 
 startService({ app, port: env.PORT, logger });

@@ -1,0 +1,58 @@
+{
+  "title": "Support requests",
+  "subtitle": "Messages from customers in the portal. Answer them here; the customer is emailed.",
+  "nav": "Support requests",
+  "filterStatus": "Status",
+  "search": "Search subject or customer",
+  "all": "All",
+  "status": { "open": "Waiting for us", "answered": "Answered", "closed": "Closed" },
+  "empty": "No support requests.",
+  "loadError": "Could not load support requests",
+  "columns": {
+    "subject": "Subject",
+    "customer": "Customer",
+    "status": "Status",
+    "last": "Last activity",
+    "messages": "Messages"
+  },
+  "open": "Open",
+  "openLabel": "Open request {{subject}} from {{customer}}",
+  "back": "Back to requests",
+  "thread": { "label": "Conversation", "staff": "{{name}} (staff)", "customer": "{{name}}" },
+  "reply": {
+    "label": "Your reply",
+    "send": "Send reply",
+    "sent": "Reply sent",
+    "failed": "Could not send the reply: {{message}}",
+    "closedNote": "This request is closed. Reopen it to reply."
+  },
+  "close": "Close request",
+  "reopen": "Reopen",
+  "closed": "Request closed",
+  "reopened": "Request reopened",
+  "customerLink": "Open customer",
+  "portal": {
+    "title": "Customer portal access",
+    "hint": "The customer signs in to see their properties, pay installments and contact support.",
+    "none": "No portal account yet. Add an email address to the customer to invite them.",
+    "email": "Sign-in email",
+    "status": { "invited": "Invited", "active": "Active", "disabled": "Switched off" },
+    "statusHint": {
+      "invited": "Waiting for the customer to choose a password.",
+      "active": "Can sign in.",
+      "disabled": "Cannot sign in until switched back on."
+    },
+    "lastLogin": "Last signed in",
+    "never": "Never",
+    "sendInvite": "Send invitation again",
+    "sendReset": "Send password reset link",
+    "linkSent": "Link sent to {{email}}",
+    "disable": "Switch access off",
+    "enable": "Switch access on",
+    "disableTitle": "Switch off portal access?",
+    "disableMessage": "{{email}} will be signed out and cannot sign in until you switch access back on.",
+    "disabled": "Portal access switched off",
+    "enabled": "Portal access switched on",
+    "loadError": "Could not load portal access"
+  }
+}

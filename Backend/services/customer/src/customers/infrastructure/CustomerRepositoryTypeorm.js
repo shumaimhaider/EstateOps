@@ -162,6 +162,16 @@ export class BookingSummaryRepositoryTypeorm {
     this.manager = manager;
   }
 
+  /** Is this booking (not cancelled) one of this customer's own? */
+  async ownedBy(tenantId, customerId, bookingId) {
+    if (!/^[0-9a-f-]{36}$/i.test(String(bookingId))) return false;
+    const rows = await this.manager.query(
+      'SELECT 1 FROM customer.booking_summary WHERE tenant_id = $1 AND customer_id = $2 AND booking_id = $3 AND NOT cancelled',
+      [tenantId, customerId, bookingId],
+    );
+    return rows.length > 0;
+  }
+
   /** True when the summary was written. An older `seq` than the stored one changes nothing. */
   async upsert(s) {
     const rows = await this.manager.query(

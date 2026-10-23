@@ -22,6 +22,11 @@ export default function BookingDetailPage() {
         description={owner ? `${owner.projectName} · ${owner.buyerName}` : undefined}
       />
       <div className="space-y-8">
+        {booking.settingUp && (
+          <p role="status" className="rounded-xl bg-tone-info-bg p-3 text-sm text-tone-info-fg">
+            {t('processing')}
+          </p>
+        )}
         <BookingPaymentsPanel bookingId={bookingId} />
         <Can perm="contracts.view">
           <ContractsPanel bookingId={bookingId} canManage={canManageContracts} />

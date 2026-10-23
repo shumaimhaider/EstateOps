@@ -1,14 +1,17 @@
 import { z } from 'zod';
 import {
+  CACHE_ENV,
+  createConsoleMailer,
+  createSmtpMailer,
   connect,
+  createCacheFromConfig,
   createDataSource,
   createIdempotencyStore,
-  createInterval,
   createJwtSigner,
   createJwtVerifier,
   createLogger,
-  createOutboxStore,
-  createRelay,
+  EVENT_TRANSPORT_ENV,
+  createEventTransport,
   createTypeormUow,
   loadConfig,
   startService,
@@ -25,6 +28,12 @@ const SCHEMA = 'identity';
 const config = loadConfig(
   process.env,
   z.object({
+    ...EVENT_TRANSPORT_ENV,
+    ...CACHE_ENV,
+    SMTP_URL: z.string().optional(),
+    MAIL_FROM: z.string().default('EstateOps <no-reply@estateops.example>'),
+    // where the customer portal lives; invitation and reset links point here
+    CUSTOMER_PORTAL_URL: z.string().url().default('http://localhost:5174'),
     JWT_PRIVATE_KEY: z.string().min(1),
     BOOTSTRAP_TOKEN: z.string().min(8),
     PORT: z.coerce.number().default(8101),
@@ -58,26 +67,30 @@ const app = composeIdentity({
   bootstrapToken: config.BOOTSTRAP_TOKEN,
   idempotencyStore: createIdempotencyStore(dataSource, { schema: SCHEMA }),
   readyCheck: () => dataSource.query('SELECT 1'),
+  mailer: config.SMTP_URL
+    ? createSmtpMailer({ url: config.SMTP_URL, from: config.MAIL_FROM })
+    : createConsoleMailer({ logger }),
+  portalUrl: config.CUSTOMER_PORTAL_URL,
+  cache: config.REDIS_URL ? createCacheFromConfig(config, { logger }) : null,
 });
 
-const relay = createRelay({
-  store: createOutboxStore(dataSource, { schema: SCHEMA }),
-  subscribers: config.subscribers,
-  internalToken: config.INTERNAL_TOKEN,
+const transport = createEventTransport({
+  config,
+  service: SCHEMA,
+  dataSource,
+  schema: SCHEMA,
+  handlers: app.handlers,
   logger,
 });
+await transport.start();
 
 startService({
   app,
   port: config.PORT,
   logger,
-  workers: [
-    createInterval({
-      name: 'outbox-relay',
-      fn: () => relay.tick(),
-      everyMs: config.RELAY_POLL_MS,
-      logger,
-    }),
-  ],
-  onShutdown: () => dataSource.destroy(),
+  workers: [...transport.workers],
+  onShutdown: async () => {
+    await transport.stop();
+    await dataSource.destroy();
+  },
 });

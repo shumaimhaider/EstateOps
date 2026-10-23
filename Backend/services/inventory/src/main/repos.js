@@ -1,5 +1,6 @@
 import { ProjectRepositoryTypeorm } from '../projects/infrastructure/ProjectRepositoryTypeorm.js';
 import { BlockRow, FloorRow, PhaseRow, ProjectRow } from '../projects/infrastructure/entities.js';
+import { FileAssetRepositoryTypeorm } from '../files/infrastructure/FileAssetRepositoryTypeorm.js';
 import { StructureRepositoryTypeorm } from '../structure/infrastructure/StructureRepositoryTypeorm.js';
 import { TenantRefRepositoryTypeorm } from '../tenants/infrastructure/TenantRefRepositoryTypeorm.js';
 import { UnitRow } from '../units/infrastructure/entities.js';
@@ -18,5 +19,6 @@ export const buildRepos = (manager) => ({
   units: new UnitRepositoryTypeorm(manager),
   unitHistory: new UnitHistoryRepositoryTypeorm(manager),
   unitMedia: new UnitMediaRepositoryTypeorm(manager),
+  fileAssets: new FileAssetRepositoryTypeorm(manager),
   tenantRefs: new TenantRefRepositoryTypeorm(manager),
 });

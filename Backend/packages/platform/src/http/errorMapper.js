@@ -40,6 +40,14 @@ export function toHttpError(error) {
     };
   }
   // Database constraint backstops (repositories translate the expected ones themselves)
+  const dbCode = error?.code ?? error?.driverError?.code;
+  // an id that is not even shaped like one (not a uuid) cannot name anything that exists
+  if (dbCode === '22P02') {
+    return {
+      status: 404,
+      body: { code: 'NOT_FOUND', message: 'Not found', details: [] },
+    };
+  }
   if (error?.code === '23505') {
     return {
       status: 409,

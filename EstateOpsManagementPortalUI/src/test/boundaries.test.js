@@ -52,18 +52,6 @@ const CASES = [
     /Only features\/\*\/data/,
   ],
   [
-    'features cannot import mocks',
-    'src/features/inventory/probe.js',
-    "import { server } from '@/mocks/server.js'; export default server;",
-    /mocks\/ is imported only/,
-  ],
-  [
-    'mocks cannot import app code',
-    'src/mocks/probe.js',
-    "import { config } from '@/shared/config/config.js'; export default config;",
-    /stands in for the server/,
-  ],
-  [
     'import.meta.env is read only in config.js',
     'src/app/probe.js',
     'export default import.meta.env.VITE_X;',

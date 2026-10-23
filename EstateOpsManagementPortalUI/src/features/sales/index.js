@@ -3,6 +3,7 @@ export { default as BookingsTable } from './components/BookingsTable.jsx';
 export { default as BookingFilters } from './components/BookingFilters.jsx';
 export { default as BookingSummary } from './components/BookingSummary.jsx';
 export { default as BookingStatusPill } from './components/BookingStatusPill.jsx';
+export { default as NewBookingDialog } from './components/NewBookingDialog.jsx';
 
 export { useBookingsQuery } from './hooks/useBookingsQuery.js';
 export { useBookingQuery } from './hooks/useBookingQuery.js';

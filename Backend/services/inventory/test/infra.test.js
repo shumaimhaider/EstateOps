@@ -8,6 +8,7 @@ import {
   createIdempotencyStore,
   createTypeormUow,
   silentLogger,
+  createFilesKit,
 } from '@estateops/platform';
 import {
   TEST_TENANT_A,
@@ -34,6 +35,20 @@ describe.skipIf(!available)('inventory on PostgreSQL', () => {
   let uow;
   const run = (work) => uow.run(work);
   const uid = () => newId();
+  const fileAsset = (tenantId, ownerId, over = {}) => ({
+    id: uid(),
+    tenantId,
+    ownerType: 'unit',
+    ownerId,
+    purpose: 'unit_image',
+    storedName: 'a.jpg',
+    originalName: 'A.jpg',
+    contentType: 'image/jpeg',
+    size: 10,
+    status: 'pending',
+    createdBy: null,
+    ...over,
+  });
 
   const mkProject = async (tenantId = TEST_TENANT_A, name = `Project ${uid().slice(0, 6)}`) => {
     const p = createProject({ tenantId, name, kind: 'plot_society' });
@@ -259,14 +274,20 @@ describe.skipIf(!available)('inventory on PostgreSQL', () => {
           changedBy: null,
           changedByName: 'x',
         });
+        const file = fileAsset(p.tenantId, flat.id);
+        await r.fileAssets.insert(file);
         await r.unitMedia.add({
           id: uid(),
           tenantId: p.tenantId,
           unitId: flat.id,
           kind: 'image',
-          url: 'https://cdn.test/a.jpg',
+          fileId: file.id,
           caption: null,
           sortOrder: 0,
+        });
+        expect((await r.unitMedia.list(flat.id))[0].asset).toMatchObject({
+          storedName: 'a.jpg',
+          ownerId: flat.id,
         });
         await r.units.saveGeometry(p.tenantId, [
           { unitId: flat.id, geometry: { type: 'rect', x: 1, y: 2, w: 3, h: 4 } },
@@ -282,6 +303,32 @@ describe.skipIf(!available)('inventory on PostgreSQL', () => {
       expect(
         await ds.query('SELECT 1 FROM inventory.unit_status_history WHERE unit_id = $1', [flat.id]),
       ).toHaveLength(0);
+    });
+
+    it('stores file assets, finds the newest ready one and lists stale uploads', async () => {
+      const p = await mkProject();
+      const a = fileAsset(p.tenantId, p.id, { ownerType: 'project', purpose: 'site_map' });
+      const b = fileAsset(p.tenantId, p.id, { ownerType: 'project', purpose: 'site_map' });
+      await run(async (r) => {
+        await r.fileAssets.insert(a);
+        await r.fileAssets.insert(b);
+        expect(await r.fileAssets.latestReady(p.tenantId, 'project', p.id, 'site_map')).toBeNull();
+        await r.fileAssets.setStatus(p.tenantId, a.id, 'ready');
+        await r.fileAssets.setStatus(p.tenantId, b.id, 'ready');
+        expect((await r.fileAssets.latestReady(p.tenantId, 'project', p.id, 'site_map')).id).toBe(
+          b.id,
+        );
+        expect(await r.fileAssets.findById(p.tenantId, 'not-a-uuid')).toBeNull();
+        expect(await r.fileAssets.findById(uid(), a.id)).toBeNull();
+      });
+      const stale = fileAsset(p.tenantId, p.id);
+      await run((r) => r.fileAssets.insert(stale));
+      await ds.query(
+        "UPDATE inventory.file_asset SET created_at = now() - interval '2 days' WHERE id = $1",
+        [stale.id],
+      );
+      const found = await run((r) => r.fileAssets.listStalePending(60 * 60 * 1000));
+      expect(found.map((f) => f.id)).toContain(stale.id);
     });
 
     it('keeps the newest tenant snapshot when events arrive out of order', async () => {
@@ -369,6 +416,7 @@ describe.skipIf(!available)('inventory on PostgreSQL', () => {
         internalToken: 'test-internal-token',
         idempotencyStore: createIdempotencyStore(ds, { schema: 'inventory' }),
         readyCheck: () => ds.query('SELECT 1'),
+        files: createFilesKit({ STORAGE_PUBLIC_BASE_URL: 'https://cdn.test' }),
       });
       const tenantId = newId();
       await deliverEvent(

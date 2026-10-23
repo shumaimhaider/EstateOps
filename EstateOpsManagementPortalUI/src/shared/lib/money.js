@@ -7,16 +7,44 @@
 /** Builds a Money value (integer minor units + currency). Used by mappers. */
 export const money = (minor, currency) => ({ minor, currency });
 
+/**
+ * Minor-unit digits per ISO 4217, the same table the back end uses: 2 unless listed. This is NOT
+ * read from Intl: browsers and Node disagree (some give PKR 0 digits), which would show every
+ * amount 100 times too large.
+ */
+const DIGITS = {
+  JPY: 0,
+  KRW: 0,
+  VND: 0,
+  CLP: 0,
+  ISK: 0,
+  UGX: 0,
+  XAF: 0,
+  XOF: 0,
+  XPF: 0,
+  PYG: 0,
+  RWF: 0,
+  BHD: 3,
+  KWD: 3,
+  OMR: 3,
+  JOD: 3,
+  TND: 3,
+  IQD: 3,
+  LYD: 3,
+};
+
 /** Number of minor-unit digits for a currency (2 for PKR/AED/USD, 0 for JPY...). */
-export function minorExponent(currency) {
-  return new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions()
-    .maximumFractionDigits;
-}
+export const minorExponent = (currency) => DIGITS[String(currency).toUpperCase()] ?? 2;
 
 /** Display string such as "PKR 12,500,000.00". Display only. */
 export function formatMoney(minor, currency, locale = 'en') {
   const exp = minorExponent(currency);
-  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(minor / 10 ** exp);
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: exp,
+    maximumFractionDigits: exp,
+  }).format(minor / 10 ** exp);
 }
 
 /**

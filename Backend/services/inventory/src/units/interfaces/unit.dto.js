@@ -46,10 +46,27 @@ export const listUnitsQuery = z.object({
   limit: z.string().optional(),
 });
 
+export const uploadUrlRequest = z.object({
+  kind: z.string().optional(),
+  filename: z.string().min(1).max(200),
+  content_type: z.string(),
+  size: z.number().int(),
+});
+
 export const createMediaRequest = z.object({
   kind: z.string(),
-  url: z.string(),
+  asset_id: z.string(),
   caption: z.string().nullable().optional(),
+});
+
+export const toUploadResponse = ({ assetId, upload }) => ({
+  asset_id: assetId,
+  upload: {
+    method: upload.method,
+    url: upload.url,
+    headers: upload.headers,
+    expires_in: upload.expiresIn,
+  },
 });
 
 /** Wire request -> the domain's camelCase fields. Only fields that were sent are included. */
@@ -80,10 +97,12 @@ export const toPlacement = (body) => ({
   floorId: body.floor_id ?? null,
 });
 
-export const toMediaResponse = (m) => ({
+/** `fileUrl` turns the file's columns into its public address: the only place that knows the host. */
+export const toMediaResponse = (m, fileUrl) => ({
   id: m.id,
   kind: m.kind,
-  url: m.url,
+  url: fileUrl(m.asset),
+  file_name: m.asset?.originalName ?? null,
   caption: m.caption ?? '',
 });
 
@@ -96,6 +115,7 @@ export function toUnitResponse({
   allowedActions,
   history,
   media,
+  fileUrl = () => null,
 }) {
   return {
     id: unit.id,
@@ -123,7 +143,7 @@ export function toUnitResponse({
     geometry: unit.geometry,
     allowed_actions: allowedActions,
     booking_id: unit.bookingId,
-    ...(media ? { media: media.map(toMediaResponse) } : {}),
+    ...(media ? { media: media.map((m) => toMediaResponse(m, fileUrl)) } : {}),
     ...(history
       ? {
           status_history: history.map((h) => ({

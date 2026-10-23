@@ -24,7 +24,9 @@ export class CreatePandaDocContract {
       const { documentId } = await this.esign.createDocument({
         template,
         signerEmail: booking.customerEmail,
+        signerName: booking.customerName,
         bookingId,
+        unitNo: booking.unitNo,
       });
       const contract = createPandaDocContract({
         tenantId: actor.tenantId,
@@ -35,7 +37,7 @@ export class CreatePandaDocContract {
         documentId,
         createdByName: actor.name,
       });
-      await repos.contracts.insert(contract);
+      const stored = await repos.contracts.insert(contract);
       await repos.audit.record({
         tenantId: actor.tenantId,
         actor,
@@ -45,7 +47,7 @@ export class CreatePandaDocContract {
         after: { bookingId, template, version: contract.version },
       });
       await repos.outbox.add(contractStatusChanged(contract, this.clock.now()));
-      return withActions(contract, actor);
+      return withActions(stored, actor);
     });
   }
 }

@@ -21,7 +21,7 @@ export default function ProjectBreakdownTable({ projects }) {
         </h2>
         <p className="text-sm text-content-muted">{t('projectBreakdown.description')}</p>
       </div>
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full text-sm" aria-labelledby="project-breakdown">
           <thead className="bg-surface-muted text-xs uppercase tracking-wide text-content-muted">
             <tr>

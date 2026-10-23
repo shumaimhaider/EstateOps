@@ -22,7 +22,7 @@ export default function CustomerPaymentsPanel({ customerId }) {
   // Unpaid invoices feed the Take payment dialog; they are not listed on this page.
   const invoices = useInvoicesQuery({ customerId, sort: SORT });
   useAllPages(invoices);
-  const flow = usePaymentFlow(invoices.invoices);
+  const flow = usePaymentFlow(invoices.invoices, { customerId });
 
   return (
     <section aria-labelledby="customer-properties">

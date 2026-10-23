@@ -11,6 +11,8 @@ const SYSTEM = { userId: null, name: 'System' };
  *                         was cancelled meanwhile, re-announces booking.cancelled to free the unit)
  *   unit.booking_rejected requested -> cancelled with the reason
  *   schedule.created      confirmed -> active
+ *   schedule.failed       requested|confirmed -> cancelled (compensation), announces booking.cancelled so the
+ *                         unit is freed, any partial invoices removed and contracts voided
  *   booking.fully_paid    active -> completed, announces booking.completed
  *   booking.summary_changed  new money figures (seq-guarded)
  */
@@ -64,6 +66,13 @@ export class FollowSaga {
 
   async scheduled(repos, booking, event) {
     await this.#move(repos, booking, 'activate', event);
+  }
+
+  async scheduleFailed(repos, booking, event) {
+    const saved = await this.#move(repos, booking, 'abort', event, {
+      cancelReason: `SCHEDULE_FAILED: ${event.data.reason}`.slice(0, 200),
+    });
+    if (saved) await repos.outbox.add(bookingCancelled(saved, this.clock.now()));
   }
 
   async paid(repos, booking, event) {

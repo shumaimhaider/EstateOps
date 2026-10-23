@@ -27,19 +27,6 @@ export const payRequest = z.object({
   adjustment_reason: z.string().nullable().optional(),
 });
 
-export const intentRequest = z.object({
-  amount: optInt,
-  adjusted_amount: optInt,
-  adjustment_reason: z.string().nullable().optional(),
-});
-export const cardPaymentRequest = z.object({
-  payment_intent_id: z.string().min(1, 'Payment is required'),
-});
-export const confirmCardRequest = z.object({
-  client_secret: z.string(),
-  card: z.object({ number: z.string(), expiry: z.string(), cvc: z.string() }),
-});
-
 /** Wire request -> the domain's camelCase input. `null` means "not sent", like an absent field. */
 export const toPaymentInput = (b) => ({
   method: b.method,
@@ -47,12 +34,6 @@ export const toPaymentInput = (b) => ({
   reference: b.reference ?? undefined,
   receivedOn: b.received_on ?? undefined,
   note: b.note ?? undefined,
-  adjustedAmount: b.adjusted_amount ?? undefined,
-  adjustmentReason: b.adjustment_reason ?? undefined,
-});
-
-export const toIntentInput = (b) => ({
-  amount: b.amount ?? undefined,
   adjustedAmount: b.adjusted_amount ?? undefined,
   adjustmentReason: b.adjustment_reason ?? undefined,
 });
@@ -105,12 +86,4 @@ export const toPaymentResponse = (p) => ({
   note: p.note,
   recorded_by_name: p.recordedByName,
   created_at: toIso(p.createdAt),
-});
-
-export const toIntentResponse = (i) => ({
-  payment_intent_id: i.providerId,
-  client_secret: i.clientSecret,
-  amount: i.amount,
-  currency: i.currency,
-  status: i.status,
 });

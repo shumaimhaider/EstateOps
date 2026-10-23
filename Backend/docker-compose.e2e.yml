@@ -1,0 +1,36 @@
+# Infrastructure for the end-to-end suite and the load tests. The suite starts the services itself
+# (as real processes) and creates throwaway databases on this server, dropping them afterwards.
+#
+#   docker compose -f docker-compose.e2e.yml up -d
+#   TEST_DATABASE_URL=postgres://postgres:postgres@localhost:55432/postgres \
+#   E2E_REDIS_URL=redis://localhost:56379/14 \
+#   E2E_KAFKA_BROKERS=localhost:59092 \
+#   npm run test:e2e
+#
+# Leave E2E_REDIS_URL / E2E_KAFKA_BROKERS unset to run with HTTP events and no cache.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_PASSWORD: postgres }
+    ports: ['55432:5432']
+    command: ['postgres', '-c', 'max_connections=400', '-c', 'fsync=off']
+    healthcheck: { test: ['CMD-SHELL', 'pg_isready -U postgres'], interval: 2s, retries: 30 }
+  redis:
+    image: redis:7-alpine
+    ports: ['56379:6379']
+    healthcheck: { test: ['CMD', 'redis-cli', 'ping'], interval: 2s, retries: 30 }
+  kafka:
+    image: apache/kafka:3.8.0
+    ports: ['59092:9092']
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:59092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'

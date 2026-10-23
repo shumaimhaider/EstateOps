@@ -2,11 +2,19 @@ import { EVENT } from '@estateops/contracts';
 import { createEventConsumerRouter, createServiceApp } from '@estateops/platform';
 import { ActOnContract } from '../contracts/application/ActOnContract.js';
 import { CreatePandaDocContract } from '../contracts/application/CreatePandaDocContract.js';
+import { ApplyProviderEvents } from '../contracts/application/ApplyProviderEvents.js';
+import { CreateSigningSession } from '../contracts/application/CreateSigningSession.js';
+import { assertESign } from '../contracts/application/esignPort.js';
+import { createPandaDocWebhookRoutes } from '../contracts/interfaces/pandaDocWebhookRoutes.js';
 import { DownloadContractFile } from '../contracts/application/DownloadContractFile.js';
 import { ListContracts } from '../contracts/application/ListContracts.js';
 import { SimulateSignerEvent } from '../contracts/application/SimulateSignerEvent.js';
 import { UploadSignedContract } from '../contracts/application/UploadSignedContract.js';
-import { createContractRoutes } from '../contracts/interfaces/contractRoutes.js';
+import { DownloadMyContract, ListMyContracts } from '../contracts/application/MyContracts.js';
+import {
+  createContractRoutes,
+  createPortalContractRoutes,
+} from '../contracts/interfaces/contractRoutes.js';
 import { ApplyBookingCancelled } from '../refs/application/ApplyBookingCancelled.js';
 import { ApplyBookingConfirmed } from '../refs/application/ApplyBookingConfirmed.js';
 
@@ -26,8 +34,16 @@ export function composeContract({
   idempotencyStore = null,
   readyCheck,
   mockSigner = false,
+  signingSessionSec = 900,
 }) {
+  assertESign(esign);
   const deps = { uow, clock };
+  const applyProviderEvents = new ApplyProviderEvents(deps);
+  const createSigningSession = new CreateSigningSession({
+    uow,
+    esign,
+    lifetimeSec: signingSessionSec,
+  });
   const routes = createContractRoutes(
     {
       listContracts: new ListContracts(deps),
@@ -35,7 +51,12 @@ export function composeContract({
       createPandaDocContract: new CreatePandaDocContract({ ...deps, esign }),
       actOnContract: new ActOnContract({ ...deps, esign }),
       simulateSignerEvent: new SimulateSignerEvent(deps),
-      downloadContractFile: new DownloadContractFile({ uow, files }),
+      createSigningSession: new CreateSigningSession({
+        uow,
+        esign,
+        lifetimeSec: signingSessionSec,
+      }),
+      downloadContractFile: new DownloadContractFile({ uow, files, esign }),
     },
     { mockSigner },
   );
@@ -43,7 +64,7 @@ export function composeContract({
     [EVENT.BOOKING_CONFIRMED]: (e) => new ApplyBookingConfirmed(deps).execute(e),
     [EVENT.BOOKING_CANCELLED]: (e) => new ApplyBookingCancelled({ ...deps, esign }).execute(e),
   };
-  return createServiceApp({
+  const app = createServiceApp({
     name: 'contract',
     logger,
     verifier,
@@ -51,6 +72,15 @@ export function composeContract({
     idempotencyStore,
     readyCheck,
     adminRouters: [routes],
+    portalRouters: [
+      createPortalContractRoutes({
+        listMyContracts: new ListMyContracts(deps),
+        createSigningSession,
+        downloadMyContract: new DownloadMyContract({ uow, files, esign }),
+      }),
+    ],
+    webhookRouters: [createPandaDocWebhookRoutes({ esign, applyProviderEvents, logger })],
     internalRouters: [createEventConsumerRouter({ handlers, logger })],
   });
+  return Object.assign(app, { handlers, applyProviderEvents });
 }

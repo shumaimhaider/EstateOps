@@ -1,0 +1,29 @@
+{
+  "empty": "No contracts for this property yet.",
+  "status": {
+    "sent": "Waiting for you",
+    "viewed": "Opened",
+    "signed": "Signed",
+    "declined": "Declined"
+  },
+  "signedOn": "Signed",
+  "sentOn": "Sent",
+  "sign": "Review and sign",
+  "download": "Download {{title}}",
+  "downloadShort": "Download",
+  "downloadFailed": "The signed copy could not be downloaded. Try again.",
+  "signing": {
+    "title": "Sign {{title}}",
+    "hint": "You sign on PandaDoc's own page. Read the document first; nothing is signed until you press Sign.",
+    "loading": "Opening the signing page…",
+    "frameTitle": "PandaDoc signing page",
+    "mockNote": "Test mode: this stands in for PandaDoc's signing page.",
+    "sign": "Sign",
+    "decline": "Decline",
+    "signed": "Thank you. Your signature was received; the signed copy appears here shortly.",
+    "declined": "You declined this contract. Your sales contact has been told.",
+    "close": "Close",
+    "done": "Done",
+    "failed": "Could not open the signing page: {{message}}"
+  }
+}

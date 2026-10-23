@@ -3,19 +3,14 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Building2, ChartNoAxesCombined, HandCoins, Map as MapIcon } from 'lucide-react';
 import {
-  DevAccounts,
   GoogleSignIn,
   LoginForm,
-  MOCK_CODE_HINT,
-  MOCK_PASSWORD_HINT,
   TwoFactorForm,
-  useDevAccountsQuery,
   useGoogleLoginMutation,
   useLoginMutation,
   useSessionQuery,
   useVerifyCodeMutation,
 } from '@/features/auth/index.js';
-import { config } from '@/shared/config/config.js';
 import { getErrorInfo } from '@/shared/lib/errors.js';
 import Card from '@/shared/ui/Card.jsx';
 
@@ -35,12 +30,10 @@ export default function LoginPage() {
   const login = useLoginMutation();
   const verify = useVerifyCodeMutation();
   const google = useGoogleLoginMutation();
-  const accounts = useDevAccountsQuery({ enabled: config.isMock });
 
   const [challenge, setChallenge] = useState(null);
   const [email, setEmail] = useState('');
   const [socialError, setSocialError] = useState('');
-  const [quickPending, setQuickPending] = useState(false);
 
   if (session.data) return <Navigate to={destination} replace />;
 
@@ -62,19 +55,6 @@ export default function LoginPage() {
       go();
     } catch (error) {
       setSocialError(t('google.failed', { message: getErrorInfo(error).message }));
-    }
-  };
-  const quickSignIn = async (account) => {
-    setQuickPending(true);
-    try {
-      const result = await login.mutateAsync({
-        email: account.email,
-        password: MOCK_PASSWORD_HINT,
-      });
-      await verify.mutateAsync({ mfaToken: result.mfaToken, code: MOCK_CODE_HINT });
-      go();
-    } finally {
-      setQuickPending(false);
     }
   };
 
@@ -111,14 +91,10 @@ export default function LoginPage() {
 
           <Card className="space-y-5">
             {challenge ? (
-              <TwoFactorForm
-                onSubmit={submitCode}
-                onBack={() => setChallenge(null)}
-                hint={config.isMock ? `Mock code: ${MOCK_CODE_HINT}` : undefined}
-              />
+              <TwoFactorForm onSubmit={submitCode} onBack={() => setChallenge(null)} />
             ) : (
               <>
-                <GoogleSignIn onToken={googleSignIn} pending={google.isPending} />
+                <GoogleSignIn onToken={googleSignIn} />
                 {socialError && (
                   <p
                     role="alert"
@@ -136,10 +112,6 @@ export default function LoginPage() {
               </>
             )}
           </Card>
-
-          {config.isMock && !challenge && accounts.data && (
-            <DevAccounts accounts={accounts.data} onPick={quickSignIn} disabled={quickPending} />
-          )}
         </div>
       </main>
     </div>

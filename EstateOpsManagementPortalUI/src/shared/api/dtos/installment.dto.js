@@ -51,22 +51,3 @@ export const paymentWriteDtoSchema = z.object({
   adjusted_amount: z.number().int().positive().optional(),
   adjustment_reason: z.string().optional(),
 });
-
-/** Request body for POST /installments/{id}/payment-intents (start a card payment). */
-export const paymentIntentWriteDtoSchema = z.object({
-  amount: z.number().int().positive().optional(),
-  adjusted_amount: z.number().int().positive().optional(),
-  adjustment_reason: z.string().optional(),
-});
-
-/** Response of payment-intents. The client secret goes to Stripe, never anywhere else. */
-export const paymentIntentDtoSchema = z.object({
-  payment_intent_id: z.string(),
-  client_secret: z.string(),
-  amount: z.number().int(),
-  currency: z.string().length(3),
-  status: z.string(),
-});
-
-/** Request body for POST /installments/{id}/card-payments (record a confirmed Stripe payment). */
-export const cardPaymentWriteDtoSchema = z.object({ payment_intent_id: z.string() });

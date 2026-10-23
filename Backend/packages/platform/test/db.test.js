@@ -214,13 +214,23 @@ describe.skipIf(!available)('platform on PostgreSQL', () => {
       const sent = [];
       const relay = createRelay({
         store: store(),
-        subscribers: { billing: 'http://billing', sales: 'http://sales' },
+        subscribers: {
+          billing: 'http://billing',
+          sales: 'http://sales',
+          inventory: 'http://inventory',
+        },
         internalToken: 't',
         logger: silentLogger,
         fetchImpl: async (url) => (sent.push(url), { ok: true, status: 200 }),
       });
       expect(await relay.tick()).toEqual({ published: 2, retry: 0, dead: 0 });
-      expect(sent).toEqual(['http://billing/internal/events', 'http://billing/internal/events']);
+      // each event goes to the services that consume it: billing, and inventory (its own cache)
+      expect(sent.sort()).toEqual([
+        'http://billing/internal/events',
+        'http://billing/internal/events',
+        'http://inventory/internal/events',
+        'http://inventory/internal/events',
+      ]);
       expect(
         await ds.query(`SELECT 1 FROM inventory.outbox WHERE status = 'pending'`),
       ).toHaveLength(0);

@@ -13,7 +13,7 @@ import PropTypes from 'prop-types';
  *   unitId: string, unitNo: string, blockId: string|null, kind: string, status: string,
  *   x: number, y: number, w: number, h: number
  * }} MapShape
- * @typedef {{ projectId: string, projectName: string, width: number, height: number, blocks: MapBlock[], shapes: MapShape[] }} ProjectMap
+ * @typedef {{ projectId: string, projectName: string, width: number, height: number, imageUrl: string|null, imageName: string|null, blocks: MapBlock[], shapes: MapShape[] }} ProjectMap
  */
 export const projectShape = PropTypes.shape({
   id: PropTypes.string.isRequired,

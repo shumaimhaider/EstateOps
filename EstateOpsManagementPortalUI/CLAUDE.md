@@ -43,7 +43,7 @@ Staff take payment on the customer's behalf from an invoice or a customer page, 
   date, never a future one. A payment reference is optional but unique within the tenant.
 - Pay by card (Stripe): the card is confirmed with Stripe directly, then the payment is verified and recorded. Card details never reach
   EstateOps. A card payment is recorded once, even if replayed. If the invoice balance changed between charge and recording, it is
-  rejected for refund. A declined card leaves the invoice untouched. Mock test cards: 4242 4242 4242 4242 pays, 4000 0000 0000 0002 is
+  rejected for refund. A declined card leaves the invoice untouched. With the stand-in Stripe server, test cards: 4242 4242 4242 4242 pays, 4000 0000 0000 0002 is
   declined, 4000 0000 0000 9995 has insufficient funds.
 - Adjusting the invoice amount at payment time (needs permission): a new amount above what is already paid, with a reason. The original
   amount, the new amount and the reason are kept and shown, and the change is audited. For card payments the adjustment applies only
@@ -99,9 +99,7 @@ Staff take payment on the customer's behalf from an invoice or a customer page, 
 
 ## Not real yet
 
-- Stripe: card confirmation is a stand-in in mock mode. Real mode needs Stripe.js with the publishable key and a payment webhook.
+- Stripe: use Stripe's own form (publishable key from the API). A stand-in Stripe server and form exist for tests and demos (VITE_STRIPE_UI=stand_in).
 - PandaDoc: documents, sending and signing events are simulated. Opening a document links to PandaDoc's address format only.
-- Uploaded contract PDFs: only the file's name and size are kept in the mock.
 - Fine rates, permissions and contracts use REST only (no GraphQL).
-- Permissions hide menus, pages and actions in the portal. Only fines, permissions, contracts, marking and card payments and amount adjustments are
-  enforced by the server in the mock. Reads of the other modules are not.
+- Permissions hide menus, pages and actions in the portal; the back end enforces them on every request.

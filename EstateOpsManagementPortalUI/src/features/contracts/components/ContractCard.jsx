@@ -1,22 +1,20 @@
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { ExternalLink, FileText } from 'lucide-react';
-import { config } from '@/shared/config/config.js';
 import Button from '@/shared/ui/Button.jsx';
 import Card from '@/shared/ui/Card.jsx';
 import DateTime from '@/shared/ui/DateTime.jsx';
 import StatusPill from '@/shared/ui/StatusPill.jsx';
-import { CONTRACT_STATUS_META, MOCK_SIGNER_EVENTS } from '../domain/contract.constants.js';
+import { CONTRACT_STATUS_META } from '../domain/contract.constants.js';
 import { contractShape } from '../domain/contract.model.js';
 import { formatFileSize } from '../domain/contract.rules.js';
 
 /** One contract version: status, source, and the actions the server allows for this role. */
-export default function ContractCard({ contract, busy, onAction, onSimulate }) {
+export default function ContractCard({ contract, busy, onAction, onSignNow }) {
   const { t } = useTranslation('contracts');
   const meta = CONTRACT_STATUS_META[contract.status];
   const can = (action) => contract.allowedActions.includes(action);
   const upload = contract.kind === 'signed_upload';
-  const events = config.isMock && !upload ? (MOCK_SIGNER_EVENTS[contract.status] ?? []) : [];
 
   return (
     <Card as="li" className="space-y-3">
@@ -81,6 +79,11 @@ export default function ContractCard({ contract, busy, onAction, onSimulate }) {
             {t('actions.send')}
           </Button>
         )}
+        {can('sign_on_screen') && (
+          <Button size="sm" disabled={busy} onClick={() => onSignNow(contract)}>
+            {t('actions.signNow')}
+          </Button>
+        )}
         {can('revise') && (
           <Button
             size="sm"
@@ -101,17 +104,6 @@ export default function ContractCard({ contract, busy, onAction, onSimulate }) {
             {t('actions.void')}
           </Button>
         )}
-        {events.map((event) => (
-          <Button
-            key={event}
-            size="sm"
-            variant="ghost"
-            disabled={busy}
-            onClick={() => onSimulate(contract, event)}
-          >
-            {t(`actions.mock.${event}`)}
-          </Button>
-        ))}
       </div>
     </Card>
   );
@@ -121,5 +113,5 @@ ContractCard.propTypes = {
   contract: contractShape.isRequired,
   busy: PropTypes.bool,
   onAction: PropTypes.func.isRequired,
-  onSimulate: PropTypes.func.isRequired,
+  onSignNow: PropTypes.func.isRequired,
 };

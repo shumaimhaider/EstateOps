@@ -26,6 +26,12 @@ export function fromApi(dto) {
   };
 }
 
+export const sessionFromApi = (dto) => ({
+  contractId: dto.contract_id,
+  url: dto.url,
+  expiresAt: dto.expires_at,
+});
+
 /** Multipart body for the signed-contract upload. */
 export function uploadToApi({ file, title }) {
   const form = new FormData();

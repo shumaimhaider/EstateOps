@@ -20,7 +20,10 @@
     "closeMenu": "Close menu",
     "fines": "Fine rates",
     "permissions": "Roles and permissions",
-    "groupSettings": "Settings"
+    "groupSettings": "Settings",
+    "transactions": "Card transactions",
+    "support": "Support requests",
+    "collectionRuns": "Daily collection"
   },
   "actions": {
     "retry": "Retry",

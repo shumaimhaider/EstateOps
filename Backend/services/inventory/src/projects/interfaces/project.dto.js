@@ -40,11 +40,23 @@ export const toBareProjectResponse = (project) =>
     allowedActions: ['update', 'delete'],
   });
 
-export const toMapResponse = ({ project, width, height, blocks, shapes }) => ({
+export const uploadUrlRequest = z.object({
+  filename: z.string().min(1).max(200),
+  content_type: z.string(),
+  size: z.number().int(),
+});
+export const confirmMapRequest = z.object({ asset_id: z.string() });
+
+export const toMapResponse = (
+  { project, width, height, blocks, shapes, mapAsset = null },
+  fileUrl = () => null,
+) => ({
   project_id: project.id,
   project_name: project.name,
   width,
   height,
+  image_url: fileUrl(mapAsset),
+  image_name: mapAsset?.originalName ?? null,
   blocks: blocks.map((b) => ({
     id: b.id,
     name: b.name,

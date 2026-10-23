@@ -59,7 +59,7 @@
     "pending": "Pending",
     "overdue": "Overdue",
     "installments": "Installments scheduled",
-    "installmentBreakdown": "{{paid}} paid \u00b7 {{due}} due now \u00b7 {{upcoming}} upcoming",
+    "installmentBreakdown": "{{paid}} paid · {{due}} due now · {{upcoming}} upcoming",
     "progress": "Payment progress",
     "schedule": "Invoices and EMI schedule",
     "scheduleHint": "Every invoice for this property, in order.",
@@ -68,5 +68,41 @@
     "backToCustomer": "Back to {{name}}"
   },
   "viewInvoices": "View invoices",
-  "viewInvoicesFor": "View invoices for {{unit}}"
+  "viewInvoicesFor": "View invoices for {{unit}}",
+  "new": {
+    "action": "New booking",
+    "title": "New booking",
+    "intro": "Reserve a unit for a customer on a payment plan. The price is the unit's list price today; the schedule is made for you in a few seconds.",
+    "findUnit": "Find an available unit",
+    "findUnitHint": "Unit number or project",
+    "unit": "Unit",
+    "chooseUnit": "Choose a unit",
+    "noUnits": "No available unit matches.",
+    "unitOption": "{{unit}} · {{project}} · {{price}}",
+    "unitFixed": "{{unit}} · {{project}}",
+    "findCustomer": "Find a customer",
+    "findCustomerHint": "Name, phone or email",
+    "customer": "Customer",
+    "chooseCustomer": "Choose a customer",
+    "plan": "Payment plan",
+    "choosePlan": "Choose a plan",
+    "noPlans": "No payment plans exist yet. Create one first.",
+    "planOption": "{{name}} · {{down}}% down + {{count}} monthly",
+    "bookedAt": "Booking date",
+    "bookedAtHint": "Leave empty for today. An earlier date is for a sale made before.",
+    "loading": "Loading…",
+    "cancel": "Cancel",
+    "submit": "Create booking",
+    "accepted": "Booking created. Its schedule appears in a few seconds.",
+    "failed": "Could not create the booking: {{message}}",
+    "errors": {
+      "unit": "Choose the unit to book",
+      "customer": "Choose the customer who is buying",
+      "plan": "Choose the payment plan to follow",
+      "date": "Enter the date as YYYY-MM-DD",
+      "future": "The booking date cannot be in the future"
+    },
+    "bookThisUnit": "Book this unit"
+  },
+  "processing": "Setting up this booking: reserving the unit and making the payment schedule…"
 }

@@ -47,7 +47,7 @@ export class UploadSignedContract {
         }
         await this.files.put(fileKey, file.buffer);
         stored = true;
-        await repos.contracts.insert(contract);
+        const saved = await repos.contracts.insert(contract);
         await repos.audit.record({
           tenantId: actor.tenantId,
           actor,
@@ -62,7 +62,7 @@ export class UploadSignedContract {
           },
         });
         await repos.outbox.add(contractStatusChanged(contract, this.clock.now()));
-        return withActions(contract, actor);
+        return withActions(saved, actor);
       });
     } catch (error) {
       // the transaction rolled back, so do not leave an orphaned file behind

@@ -44,13 +44,23 @@ export default function ProjectMap({ map, onSelectUnit }) {
           </button>
         ))}
       </div>
-      <div className="overflow-x-auto bg-surface-muted/50 p-3">
+      <div className="relative overflow-x-auto bg-surface-muted/50 p-3">
         <svg
           role="group"
           aria-label={t('map.label', { name: map.projectName })}
           viewBox={`0 0 ${map.width} ${map.height}`}
           className="mx-auto h-auto w-full min-w-[640px] max-w-5xl"
         >
+          {map.imageUrl && (
+            <image
+              href={map.imageUrl}
+              width={map.width}
+              height={map.height}
+              preserveAspectRatio="xMidYMid slice"
+              opacity="0.45"
+              aria-hidden="true"
+            />
+          )}
           {map.blocks.map((block) => (
             <g key={block.id}>
               <rect

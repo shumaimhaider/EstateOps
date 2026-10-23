@@ -4,6 +4,18 @@ import { EVENT, EVENT_SCHEMAS, buildEvent, parseEvent } from '../src/index.js';
 const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const TENANT = uuid(1);
 
+const CHARGE = {
+  transaction_id: uuid(7),
+  invoice_id: uuid(5),
+  booking_id: uuid(6),
+  customer_id: uuid(4),
+  amount: 500000,
+  currency: 'PKR',
+  card_brand: 'visa',
+  card_last4: '4242',
+  trigger: 'scheduled',
+};
+
 const SAMPLES = {
   [EVENT.TENANT_UPSERTED]: {
     slug: 'pk',
@@ -49,6 +61,24 @@ const SAMPLES = {
     booked_at: '2026-10-21',
   },
   [EVENT.SCHEDULE_CREATED]: { booking_id: uuid(5), invoices: 13 },
+  [EVENT.PAYMENT_COLLECTION_REQUESTED]: {
+    invoice_id: uuid(5),
+    booking_id: uuid(6),
+    customer_id: uuid(4),
+    attempt_key: '2026-10-21:1',
+    attempt_no: 1,
+    reason: 'due',
+  },
+  [EVENT.PAYMENT_CHARGE_SUCCEEDED]: CHARGE,
+  [EVENT.PAYMENT_CHARGE_FAILED]: {
+    ...CHARGE,
+    failure_code: 'insufficient_funds',
+    failure_message: 'Your card has insufficient funds.',
+    will_retry: true,
+    retry_on: '2026-10-22',
+  },
+  [EVENT.PAYMENT_REFUNDED]: { ...CHARGE, reason: 'BALANCE_CHANGED' },
+  [EVENT.SCHEDULE_FAILED]: { booking_id: uuid(5), reason: 'The plan produces no invoices' },
   [EVENT.BOOKING_SUMMARY_CHANGED]: {
     booking_id: uuid(5),
     customer_id: uuid(4),
@@ -147,11 +177,22 @@ describe('event routes', () => {
     expect(consumersOf('nope')).toEqual([]);
   });
 
-  it('only fine_rate.changed is consumed by its own producer', async () => {
+  it('only a service reads its own announcements only for its work queue, notifications and cache refresh', async () => {
     const { EVENT_ROUTES } = await import('../src/index.js');
     const selfRouted = Object.entries(EVENT_ROUTES)
       .filter(([, r]) => r.consumers.includes(r.producer))
       .map(([type]) => type);
-    expect(selfRouted).toEqual(['fine_rate.changed']);
+    expect(selfRouted.sort()).toEqual(
+      [
+        'booking.summary_changed',
+        'fine_rate.changed',
+        'payment.charge_failed',
+        'payment.charge_succeeded',
+        'payment.collection_requested',
+        'payment.refunded',
+        'project.upserted',
+        'unit.upserted',
+      ].sort(),
+    );
   });
 });

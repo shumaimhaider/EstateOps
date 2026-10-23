@@ -84,9 +84,6 @@
       "invoice": "Choose an invoice",
       "amount": "Enter an amount up to the outstanding balance",
       "reference": "Reference is too long",
-      "cardNumber": "Enter the card number",
-      "cardExpiry": "Enter the expiry as MM/YY",
-      "cardCvc": "Enter the 3 or 4 digit security code",
       "adjustedAmount": "Enter a new invoice amount above what is already paid",
       "adjustmentReason": "Give a reason for changing the invoice amount"
     },
@@ -94,7 +91,8 @@
     "type": "How was it paid?",
     "types": {
       "manual": "Mark as received",
-      "card": "Pay by card (Stripe)"
+      "card": "Pay by card (Stripe form)",
+      "saved": "Charge saved card"
     },
     "receivedOn": "Date received",
     "receivedOnHint": "Leave empty for today. Use an earlier date for money received before.",
@@ -105,13 +103,14 @@
       "reason": "Reason for the change"
     },
     "card": {
-      "number": "Card number",
-      "expiry": "Expiry (MM/YY)",
-      "cvc": "Security code (CVC)",
-      "submit": "Pay by card",
-      "testHint": "Test cards: 4242 4242 4242 4242 pays, 4000 0000 0000 0002 is declined."
+      "submit": "Continue to card form",
+      "saveCard": "Save this card for the customer's later payments"
     },
-    "cardSuccess": "Card payment received for {{invoice}}"
+    "cardSuccess": "Card payment received for {{invoice}}",
+    "saved": {
+      "submit": "Charge saved card",
+      "with": "The customer's active card, {{brand}} ending {{last4}}, will be charged."
+    }
   },
   "tiles": {
     "saleValue": "Total sale value",

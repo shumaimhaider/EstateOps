@@ -4,36 +4,33 @@ import { useTranslation } from 'react-i18next';
 import { applyServerErrors, zodValidate } from '@/shared/lib/forms.js';
 import { parseMajorToMinor } from '@/shared/lib/money.js';
 import Button from '@/shared/ui/Button.jsx';
+import CheckboxField from '@/shared/ui/CheckboxField.jsx';
 import TextField from '@/shared/ui/TextField.jsx';
 import { canAdjustAmount } from '../domain/installment.rules.js';
 import { invoiceShape } from '../domain/installment.model.js';
-import {
-  createPaymentFormSchema,
-  minorToInput,
-  toCard,
-  toPayment,
-} from '../schemas/paymentForm.schema.js';
+import { createPaymentFormSchema, minorToInput, toPayment } from '../schemas/paymentForm.schema.js';
 import AdjustFields from './AdjustFields.jsx';
-import CardFields from './CardFields.jsx';
 import ManualFields from './ManualFields.jsx';
 
 const BLANK = {
   method: 'cash',
   reference: '',
   receivedOn: '',
-  cardNumber: '',
-  cardExpiry: '',
-  cardCvc: '',
+  saveCard: false,
   adjust: false,
   adjustedAmount: '',
   adjustmentReason: '',
 };
 
-/** One payment against one invoice: marked received by hand (`manual`) or charged to a card. */
-export default function PaymentForm({ invoice, mode, onCancel, onSubmit }) {
+/**
+ * One payment against one invoice: marked received by hand (`manual`), taken on Stripe's embedded
+ * card form (`card`) or charged to the customer's saved card (`saved`). `savedCardLabel` names it.
+ */
+export default function PaymentForm({ invoice, mode, savedCardLabel, onCancel, onSubmit }) {
   const { t } = useTranslation('collections');
   const currency = invoice.balance.currency;
   const card = mode === 'card';
+  const saved = mode === 'saved';
 
   const formik = useFormik({
     initialValues: {
@@ -47,7 +44,7 @@ export default function PaymentForm({ invoice, mode, onCancel, onSubmit }) {
       try {
         await onSubmit({
           payment: toPayment(values, currency),
-          card: card ? toCard(values) : null,
+          saveCard: card && values.saveCard,
         });
         helpers.resetForm();
       } catch (error) {
@@ -81,7 +78,18 @@ export default function PaymentForm({ invoice, mode, onCancel, onSubmit }) {
         inputMode="decimal"
         {...field('amount')}
       />
-      {card ? <CardFields field={field} /> : <ManualFields field={field} />}
+      {mode === 'manual' && <ManualFields field={field} />}
+      {card && (
+        <CheckboxField
+          className="sm:col-span-2"
+          label={t('pay.card.saveCard')}
+          checked={formik.values.saveCard}
+          onChange={(e) => formik.setFieldValue('saveCard', e.target.checked)}
+        />
+      )}
+      {saved && (
+        <p className="rounded-xl bg-surface-muted p-3 text-sm sm:col-span-2">{savedCardLabel}</p>
+      )}
       {canAdjustAmount(invoice) && (
         <AdjustFields
           invoice={invoice}
@@ -95,7 +103,7 @@ export default function PaymentForm({ invoice, mode, onCancel, onSubmit }) {
           {t('pay.cancel')}
         </Button>
         <Button type="submit" loading={formik.isSubmitting}>
-          {card ? t('pay.card.submit') : t('pay.submit')}
+          {card ? t('pay.card.submit') : saved ? t('pay.saved.submit') : t('pay.submit')}
         </Button>
       </div>
     </form>
@@ -104,7 +112,8 @@ export default function PaymentForm({ invoice, mode, onCancel, onSubmit }) {
 
 PaymentForm.propTypes = {
   invoice: invoiceShape.isRequired,
-  mode: PropTypes.oneOf(['manual', 'card']).isRequired,
+  mode: PropTypes.oneOf(['manual', 'card', 'saved']).isRequired,
+  savedCardLabel: PropTypes.string,
   onCancel: PropTypes.func.isRequired,
   onSubmit: PropTypes.func.isRequired,
 };

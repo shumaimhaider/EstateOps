@@ -109,7 +109,8 @@ export class ContractRepositoryTypeorm {
         created_by_name: k.createdByName,
       })
       .catch(translate);
-    return k;
+    // the database fills created_at/updated_at: hand back the row as stored, not the input
+    return (await this.findById(k.tenantId, k.id)) ?? k;
   }
 
   async findById(tenantId, id, { lock = false } = {}) {
@@ -117,6 +118,16 @@ export class ContractRepositoryTypeorm {
     const qb = this.repo
       .createQueryBuilder('c')
       .where('c.id = :id AND c.tenant_id = :tenantId', { id, tenantId });
+    if (lock) qb.setLock('pessimistic_write');
+    const row = await qb.getOne();
+    return row ? toContract(row) : null;
+  }
+
+  /** A webhook knows only the provider's document id, so this lookup spans tenants. */
+  async findByProviderDocumentId(documentId, { lock = false } = {}) {
+    const qb = this.repo
+      .createQueryBuilder('c')
+      .where('c.provider_document_id = :documentId', { documentId });
     if (lock) qb.setLock('pessimistic_write');
     const row = await qb.getOne();
     return row ? toContract(row) : null;

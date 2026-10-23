@@ -4,20 +4,31 @@ import {
   connect,
   createDataSource,
   createIdempotencyStore,
-  createInterval,
   createJwtVerifier,
   createLogger,
-  createOutboxStore,
-  createRelay,
+  EVENT_TRANSPORT_ENV,
+  createEventTransport,
+  createInterval,
   createTypeormUow,
   loadConfig,
   startService,
 } from '@estateops/platform';
+import { createBillingPaymentsClient } from '../bookings/infrastructure/BillingPaymentsClient.js';
 import { composeSales } from './compose.js';
 import { ENTITIES, buildRepos } from './repos.js';
 
 const SCHEMA = 'sales';
-const config = loadConfig(process.env, z.object({ PORT: z.coerce.number().default(8104) }));
+const config = loadConfig(
+  process.env,
+  z.object({
+    ...EVENT_TRANSPORT_ENV,
+    PORT: z.coerce.number().default(8104),
+    SAGA_TIMEOUT_MS: z.coerce.number().default(10 * 60_000),
+    SAGA_SWEEP_MS: z.coerce.number().default(60_000),
+    // billing's address: asked whether a booking has payments before it is cancelled
+    BILLING_URL: z.string().url().optional(),
+  }),
+);
 const logger = createLogger({ name: SCHEMA, level: config.LOG_LEVEL });
 
 const connectTo = (url) =>
@@ -33,26 +44,40 @@ const app = composeSales({
   internalToken: config.INTERNAL_TOKEN,
   idempotencyStore: createIdempotencyStore(dataSource, { schema: SCHEMA }),
   readyCheck: () => dataSource.query('SELECT 1'),
+  sagaTimeoutMs: config.SAGA_TIMEOUT_MS,
+  payments: config.BILLING_URL
+    ? createBillingPaymentsClient({
+        baseUrl: config.BILLING_URL,
+        internalToken: config.INTERNAL_TOKEN,
+      })
+    : null,
 });
 
-const relay = createRelay({
-  store: createOutboxStore(dataSource, { schema: SCHEMA }),
-  subscribers: config.subscribers,
-  internalToken: config.INTERNAL_TOKEN,
+const transport = createEventTransport({
+  config,
+  service: SCHEMA,
+  dataSource,
+  schema: SCHEMA,
+  handlers: app.handlers,
   logger,
 });
+await transport.start();
 
 startService({
   app,
   port: config.PORT,
   logger,
   workers: [
+    ...transport.workers,
     createInterval({
-      name: 'outbox-relay',
-      fn: () => relay.tick(),
-      everyMs: config.RELAY_POLL_MS,
+      name: 'saga-timeout',
+      fn: () => app.sweepStuckBookings.execute(),
+      everyMs: config.SAGA_SWEEP_MS,
       logger,
     }),
   ],
-  onShutdown: () => dataSource.destroy(),
+  onShutdown: async () => {
+    await transport.stop();
+    await dataSource.destroy();
+  },
 });

@@ -193,6 +193,17 @@ export class BookingRepositoryTypeorm {
     return rows.length > 0;
   }
 
+  /** Bookings still waiting on another service since before `cutoff` (saga timeout). */
+  async listStuck(cutoff, limit = 50) {
+    const rows = await this.manager.query(
+      `SELECT id, tenant_id FROM sales.booking
+        WHERE status IN ('requested', 'confirmed') AND updated_at < $1
+        ORDER BY updated_at LIMIT $2`,
+      [cutoff, limit],
+    );
+    return rows.map((r) => ({ id: r.id, tenantId: r.tenant_id }));
+  }
+
   async update(b) {
     const version = await updateVersioned(this.manager, BookingRow, {
       where: { id: b.id, tenant_id: b.tenantId },

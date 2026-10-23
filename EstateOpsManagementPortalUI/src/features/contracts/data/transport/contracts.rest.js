@@ -9,7 +9,6 @@ export const contractsRest = {
     httpClient.post(`/admin/bookings/${bookingId}/contracts/pandadoc`, body, { idempotencyKey }),
   act: (id, action, body, { idempotencyKey } = {}) =>
     httpClient.post(`/admin/contracts/${id}/${action}`, body, { idempotencyKey }),
-  // Mock only: stands in for the PandaDoc webhook.
-  simulate: (id, event, { idempotencyKey } = {}) =>
-    httpClient.post(`/admin/mock/contracts/${id}/events/${event}`, undefined, { idempotencyKey }),
+  startSigning: (id, { idempotencyKey } = {}) =>
+    httpClient.post(`/admin/contracts/${id}/signing-session`, {}, { idempotencyKey }),
 };

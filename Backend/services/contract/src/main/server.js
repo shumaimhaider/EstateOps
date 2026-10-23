@@ -4,16 +4,15 @@ import {
   connect,
   createDataSource,
   createIdempotencyStore,
-  createInterval,
   createJwtVerifier,
   createLogger,
-  createOutboxStore,
-  createRelay,
+  EVENT_TRANSPORT_ENV,
+  createEventTransport,
   createTypeormUow,
   loadConfig,
   startService,
 } from '@estateops/platform';
-import { createFakeESignProvider } from '../contracts/infrastructure/FakeESignProvider.js';
+import { createPandaDocClient } from '../contracts/infrastructure/PandaDocClient.js';
 import { createLocalFileStore } from '../contracts/infrastructure/LocalFileStore.js';
 import { composeContract } from './compose.js';
 import { ENTITIES, buildRepos } from './repos.js';
@@ -21,7 +20,19 @@ import { ENTITIES, buildRepos } from './repos.js';
 const SCHEMA = 'contract';
 const config = loadConfig(
   process.env,
-  z.object({ PORT: z.coerce.number().default(8106), STORAGE_DIR: z.string().default('./storage') }),
+  z.object({
+    ...EVENT_TRANSPORT_ENV,
+    PORT: z.coerce.number().default(8106),
+    STORAGE_DIR: z.string().default('./storage'),
+    // PandaDoc keys are pasted into the environment, never committed
+    PANDADOC_API_KEY: z.string().min(1),
+    PANDADOC_WEBHOOK_KEY: z.string().min(1),
+    PANDADOC_TEMPLATE_SALE_AGREEMENT: z.string().min(1),
+    PANDADOC_TEMPLATE_PAYMENT_PLAN: z.string().min(1),
+    // only for a mock PandaDoc in development and tests; leave unset for the real API
+    PANDADOC_API_BASE: z.string().default('https://api.pandadoc.com'),
+    PANDADOC_SESSION_BASE: z.string().default('https://app.pandadoc.com/s'),
+  }),
 );
 const logger = createLogger({ name: SCHEMA, level: config.LOG_LEVEL });
 
@@ -34,7 +45,16 @@ const app = composeContract({
   uow: createTypeormUow({ dataSource, readDataSource, schema: SCHEMA, buildRepos }),
   clock: systemClock,
   files: createLocalFileStore(config.STORAGE_DIR), // replaced by an object-storage adapter later
-  esign: createFakeESignProvider(), // replaced by the PandaDoc adapter later
+  esign: createPandaDocClient({
+    apiKey: config.PANDADOC_API_KEY,
+    sharedKey: config.PANDADOC_WEBHOOK_KEY,
+    baseUrl: config.PANDADOC_API_BASE,
+    sessionBaseUrl: config.PANDADOC_SESSION_BASE,
+    templates: {
+      sale_agreement: config.PANDADOC_TEMPLATE_SALE_AGREEMENT,
+      payment_plan_addendum: config.PANDADOC_TEMPLATE_PAYMENT_PLAN,
+    },
+  }),
   verifier: await createJwtVerifier({ publicKeyPem: config.jwtPublicKey }),
   logger,
   internalToken: config.INTERNAL_TOKEN,
@@ -43,24 +63,23 @@ const app = composeContract({
   mockSigner: !config.isProduction,
 });
 
-const relay = createRelay({
-  store: createOutboxStore(dataSource, { schema: SCHEMA }),
-  subscribers: config.subscribers,
-  internalToken: config.INTERNAL_TOKEN,
+const transport = createEventTransport({
+  config,
+  service: SCHEMA,
+  dataSource,
+  schema: SCHEMA,
+  handlers: app.handlers,
   logger,
 });
+await transport.start();
 
 startService({
   app,
   port: config.PORT,
   logger,
-  workers: [
-    createInterval({
-      name: 'outbox-relay',
-      fn: () => relay.tick(),
-      everyMs: config.RELAY_POLL_MS,
-      logger,
-    }),
-  ],
-  onShutdown: () => dataSource.destroy(),
+  workers: [...transport.workers],
+  onShutdown: async () => {
+    await transport.stop();
+    await dataSource.destroy();
+  },
 });

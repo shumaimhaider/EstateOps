@@ -2,11 +2,20 @@ import { z } from 'zod';
 
 /**
  * Wire shape of a unit (GET /admin/units). THE ONLY PLACE the backend field names for
- * this entity are declared (besides its mapper, GraphQL fragment and the mock server).
+ * this entity are declared (besides its mapper and GraphQL fragment).
  * Money is an integer in minor units + currency.
  *
  * @typedef {z.infer<typeof unitDtoSchema>} UnitDto
  */
+/** One picture. `file_name` is the name it was uploaded with (absent for demo pictures). */
+export const unitMediaDtoSchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  url: z.string(),
+  caption: z.string(),
+  file_name: z.string().nullable().optional(),
+});
+
 export const unitDtoSchema = z.object({
   id: z.uuid(),
   tenant_id: z.uuid(),
@@ -33,9 +42,7 @@ export const unitDtoSchema = z.object({
   geometry: z.record(z.string(), z.unknown()).nullable(),
   allowed_actions: z.array(z.string()),
   booking_id: z.uuid().nullable(),
-  media: z
-    .array(z.object({ id: z.string(), kind: z.string(), url: z.string(), caption: z.string() }))
-    .optional(),
+  media: z.array(unitMediaDtoSchema).optional(),
   status_history: z
     .array(
       z.object({

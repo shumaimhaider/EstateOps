@@ -14,7 +14,7 @@ export default function ChartCard({ title, description, children, tableHeaders, 
         <summary className="cursor-pointer font-medium text-primary">
           {t('chart.viewTable')}
         </summary>
-        <div className="mt-2 overflow-x-auto">
+        <div className="relative mt-2 overflow-x-auto">
           <table
             className="w-full text-start text-xs"
             aria-label={`${title} (${t('chart.table')})`}

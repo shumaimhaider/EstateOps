@@ -115,7 +115,27 @@
     "notFound": "Unit not found",
     "pictures": "Pictures",
     "viewSale": "View sale & EMI schedule",
-    "saleAndEmi": "Sale & EMI schedule"
+    "saleAndEmi": "Sale & EMI schedule",
+    "media": {
+      "title": "Manage pictures",
+      "file": "Picture file",
+      "fileHint": "JPG, PNG or WebP up to 8 MB (floor plans may also be a PDF up to 15 MB).",
+      "kind": "Type",
+      "kinds": {
+        "image": "Photo",
+        "floor_plan": "Floor plan"
+      },
+      "caption": "Caption (optional)",
+      "upload": "Upload picture",
+      "uploading": "Uploading…",
+      "uploaded": "Picture uploaded",
+      "remove": "Remove {{name}}",
+      "removeTitle": "Remove this picture?",
+      "removeMessage": "The picture is deleted from the unit and from storage.",
+      "removed": "Picture removed",
+      "chooseFile": "Choose a file first",
+      "noPlots": "Pictures are not kept for plots."
+    }
   },
   "projectKind": {
     "plot_society": "Plot society",
@@ -151,6 +171,16 @@
     "tab": "Site map",
     "unitsTab": "Units",
     "tabs": "Project sections",
-    "back": "Back to projects"
+    "back": "Back to projects",
+    "upload": {
+      "title": "Site map image",
+      "hint": "Upload the developer's plan (JPG, PNG, WebP, SVG or PDF up to 25 MB). It replaces the current one.",
+      "file": "Site map file",
+      "button": "Upload site map",
+      "uploading": "Uploading…",
+      "done": "Site map updated",
+      "current": "Current: {{name}}",
+      "chooseFile": "Choose a file first"
+    }
   }
 }

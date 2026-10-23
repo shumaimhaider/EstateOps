@@ -8,6 +8,7 @@ import {
   createIdempotencyStore,
   createTypeormUow,
   silentLogger,
+  createMemoryMailer,
 } from '@estateops/platform';
 import {
   createTestAuth,
@@ -20,16 +21,26 @@ import { ENTITIES, buildRepos } from '../src/main/repos.js';
 import { ApplyTenant } from '../src/refs/application/ApplyTenant.js';
 import { CreateSchedule } from '../src/installments/application/CreateSchedule.js';
 import { RecordPayment } from '../src/installments/application/RecordPayment.js';
-import { CreateCardPaymentIntent } from '../src/installments/application/CreateCardPaymentIntent.js';
-import { RecordCardPayment } from '../src/installments/application/RecordCardPayment.js';
+import { CreateCheckoutSession } from '../src/payments/application/CreateCheckoutSession.js';
+import { GetCheckoutSession } from '../src/payments/application/GetCheckoutSession.js';
+import { HandleStripeEvent } from '../src/payments/application/HandleStripeEvent.js';
+import { CollectDueInvoices } from '../src/payments/application/CollectDueInvoices.js';
+import {
+  ListCollectionAttempts,
+  ListCollectionRuns,
+} from '../src/payments/application/CollectionHistory.js';
+import { CreateCardSetupSession } from '../src/payments/application/CreateCardSetupSession.js';
+import { ProcessCollectionRequest } from '../src/payments/application/ProcessCollectionRequest.js';
+import { SendPaymentEmail } from '../src/payments/application/SendPaymentEmail.js';
+import { ChargeSavedCard } from '../src/payments/application/ChargeSavedCard.js';
 import { SweepStatuses } from '../src/jobs/application/SweepStatuses.js';
 import { SendNotice } from '../src/escalations/application/SendNotice.js';
 import { GetCollectionStats } from '../src/stats/application/GetCollectionStats.js';
-import { createFakeCardGateway } from '../src/installments/infrastructure/FakeCardGateway.js';
+import { createStripeGateway } from '../src/payments/infrastructure/StripeGateway.js';
 import { createRule, fineFor, resolveRule } from '../src/fines/domain/rule.js';
 import { summarizeInvoices } from '../src/installments/domain/summary.js';
 import { toInvoice } from '../src/installments/infrastructure/InstallmentRepositoryTypeorm.js';
-import { CONFIRMED, actor, movableClock, uuid } from './fakes.js';
+import { CONFIRMED, actor, movableClock, payInCheckout, sharedStripeMock, uuid } from './fakes.js';
 
 const available = await postgresAvailable();
 if (!available) process.stderr.write('[billing db tests] no PostgreSQL reachable: skipping\n');
@@ -482,42 +493,293 @@ describe.skipIf(!available)('billing on PostgreSQL', () => {
       expect(row).toMatchObject({ status: 'paid', paid_amount: emi.amount });
     });
 
-    it('records a card payment exactly once under parallel replays, with every row committed together', async () => {
+    const stripeSetup = async () => {
+      const mock = await sharedStripeMock();
+      await fetch(`${mock.url}/_mock/reset`, { method: 'POST' });
+      const gateway = createStripeGateway({
+        secretKey: 'sk_test_mock',
+        webhookSecret: 'whsec_mock',
+        apiBase: mock.url,
+        maxNetworkRetries: 0,
+      });
+      const stripe = {
+        publishableKey: 'pk_test',
+        returnUrl: 'http://app.test/return?c={CHECKOUT_ID}',
+      };
+      return { mock, gateway, stripe, deps: { uow, clock, gateway, stripe } };
+    };
+    const withCustomer = async (tenantId, d) =>
+      ds.query(
+        "INSERT INTO billing.customer_ref (customer_id, tenant_id, full_name, email) VALUES ($1, $2, 'Ali Raza', 'ali@example.test') ON CONFLICT DO NOTHING",
+        [d.customer.id, tenantId],
+      );
+
+    it('books a Checkout card payment exactly once under parallel webhook and return-page replays, all rows committed together', async () => {
       const { tenantId, finance } = await tenant();
       const d = await schedule(tenantId, { booked_at: '2026-05-01' });
+      await withCustomer(tenantId, d);
       const [, emi] = await invoicesOf(d.booking_id);
-      const gateway = createFakeCardGateway({ clock });
-      const intent = await new CreateCardPaymentIntent({ uow, clock, gateway }).execute({
+      const { mock, deps } = await stripeSetup();
+      const created = await new CreateCheckoutSession(deps).execute({
         actor: finance,
         id: emi.id,
         input: { amount: 1_000_000 },
       });
-      await gateway.confirm({
-        providerId: intent.providerId,
-        clientSecret: intent.clientSecret,
-        card: { number: '4242424242424242', expiry: '12/30', cvc: '123' },
-      });
-      const record = () =>
-        new RecordCardPayment({ uow, clock, gateway }).execute({
-          actor: finance,
-          id: emi.id,
-          providerId: intent.providerId,
-        });
-      const results = await Promise.allSettled([record(), record(), record(), record()]);
+      const [{ stripe_session_id: sid }] = await ds.query(
+        'SELECT stripe_session_id FROM billing.checkout_session WHERE id = $1',
+        [created.checkoutId],
+      );
+      expect((await payInCheckout({ stripeMock: mock }, sid)).body.outcome).toBe('succeeded');
+      const completed = mock.state.events.find((e) => e.type === 'checkout.session.completed');
+
+      const ret = () =>
+        new GetCheckoutSession(deps).execute({ actor: finance, id: created.checkoutId });
+      const hook = () => new HandleStripeEvent(deps).execute(completed);
+      const results = await Promise.allSettled([ret(), hook(), ret(), hook(), ret()]);
       expect(results.every((r) => r.status === 'fulfilled')).toBe(true);
+
       const payments = await ds.query(
         'SELECT source, stripe_intent_id, amount FROM billing.payment WHERE installment_id = $1',
         [emi.id],
       );
       expect(payments).toEqual([
-        { source: 'stripe', stripe_intent_id: intent.providerId, amount: 1_000_000 },
+        { source: 'stripe', stripe_intent_id: expect.stringMatching(/^pi_/), amount: 1_000_000 },
       ]);
+      const [tx] = await ds.query(
+        'SELECT status, stripe_charge_id, card_last4, stripe_response, payment_id FROM billing.payment_transaction WHERE checkout_session_id = $1',
+        [created.checkoutId],
+      );
+      expect(tx).toMatchObject({
+        status: 'succeeded',
+        card_last4: '4242',
+        payment_id: expect.any(String),
+      });
+      expect(tx.stripe_response.checkout_session).toMatchObject({
+        object: 'checkout.session',
+        status: 'complete',
+      });
       expect((await invoicesOf(d.booking_id))[1].paidAmount).toBe(1_000_000);
       expect(
         (await eventsOf(tenantId, 'payment.recorded')).filter(
           (e) => e.data.installment_id === emi.id,
         ),
       ).toHaveLength(1);
+      const events = await ds.query('SELECT status FROM billing.stripe_event WHERE id = $1', [
+        completed.id,
+      ]);
+      expect(events).toEqual([{ status: 'processed' }]);
+    });
+
+    it('enforces one active card per customer, one row per physical card, and one attempt per idempotency key', async () => {
+      const { tenantId, finance } = await tenant();
+      const d = await schedule(tenantId, { booked_at: '2026-05-01' });
+      const [, emi] = await invoicesOf(d.booking_id);
+      const cust = d.customer.id;
+      const pm = (n, active, fp) =>
+        ds.query(
+          `INSERT INTO billing.payment_method (id, tenant_id, customer_id, stripe_payment_method_id, brand, last4, exp_month, exp_year, fingerprint, is_active)
+           VALUES ($1, $2, $3, $4, 'visa', '4242', 12, 2030, $5, $6)`,
+          [uuid(7000 + n), tenantId, cust, `pm_${n}_${tenantId.slice(-4)}`, fp, active],
+        );
+      await pm(1, true, 'fp-a');
+      await expect(pm(2, true, 'fp-b')).rejects.toMatchObject({
+        driverError: { constraint: 'pm_one_active_uq' },
+      });
+      await expect(pm(3, false, 'fp-a')).rejects.toMatchObject({
+        driverError: { constraint: 'pm_fingerprint_uq' },
+      });
+      await pm(4, false, 'fp-c');
+      await expect(
+        ds.query("UPDATE billing.payment_method SET status = 'removed' WHERE id = $1", [
+          uuid(7001),
+        ]),
+      ).rejects.toMatchObject({ driverError: { constraint: 'pm_active_needs_status_chk' } });
+
+      const insertTx = (key) =>
+        ds.query(
+          `INSERT INTO billing.payment_transaction (id, tenant_id, installment_id, booking_id, customer_id, trigger, amount, currency, idempotency_key)
+           VALUES ($1, $2, $3, $4, $5, 'scheduled', 100, 'PKR', $6)`,
+          [uuid(Math.floor(Math.random() * 1e9)), tenantId, emi.id, d.booking_id, cust, key],
+        );
+      await insertTx('k1');
+      await expect(insertTx('k1')).rejects.toMatchObject({
+        driverError: { constraint: 'tx_idem_uq' },
+      });
+      await expect(
+        ds.query(
+          "UPDATE billing.payment_transaction SET status = 'exploded' WHERE tenant_id = $1",
+          [tenantId],
+        ),
+      ).rejects.toMatchObject({ driverError: { constraint: 'tx_status_chk' } });
+      expect(finance).toBeTruthy();
+    });
+
+    it('charges a saved card once even when the same attempt is sent in parallel', async () => {
+      const { tenantId, finance } = await tenant();
+      const d = await schedule(tenantId, { booked_at: '2026-05-01' });
+      await withCustomer(tenantId, d);
+      const [, emi] = await invoicesOf(d.booking_id);
+      const { mock, deps } = await stripeSetup();
+      const setup = await new (
+        await import('../src/payments/application/CreateCardSetupSession.js')
+      ).CreateCardSetupSession(deps).execute({
+        actor: finance,
+        customerId: d.customer.id,
+      });
+      const [{ stripe_session_id: sid }] = await ds.query(
+        'SELECT stripe_session_id FROM billing.checkout_session WHERE id = $1',
+        [setup.checkoutId],
+      );
+      await payInCheckout({ stripeMock: mock }, sid);
+      await new GetCheckoutSession(deps).execute({ actor: finance, id: setup.checkoutId });
+
+      const charge = () =>
+        new ChargeSavedCard(deps).execute({
+          actor: finance,
+          id: emi.id,
+          input: { amount: 500_000 },
+          attemptKey: 'attempt-1',
+        });
+      const results = await Promise.allSettled([charge(), charge(), charge()]);
+      expect(results.filter((r) => r.status === 'fulfilled').length).toBeGreaterThanOrEqual(1);
+      const payments = await ds.query(
+        'SELECT amount FROM billing.payment WHERE installment_id = $1',
+        [emi.id],
+      );
+      expect(payments).toEqual([{ amount: 500_000 }]);
+      const txs = await ds.query(
+        "SELECT status FROM billing.payment_transaction WHERE installment_id = $1 AND trigger = 'staff_saved_card'",
+        [emi.id],
+      );
+      expect(txs).toEqual([{ status: 'succeeded' }]);
+    });
+
+    it('collects due invoices through the queue exactly once, emails each outcome once, and a failed send is retried', async () => {
+      const { tenantId, finance } = await tenant();
+      const d = await schedule(tenantId, {
+        booked_at: '2026-05-01',
+        customer: { id: newId(), full_name: 'Ali Raza', phone: null, email: 'ali@example.test' },
+      });
+      await withCustomer(tenantId, d);
+      const { mock, deps } = await stripeSetup();
+      const mailer = createMemoryMailer();
+      const setup = await new CreateCardSetupSession(deps).execute({
+        actor: finance,
+        customerId: d.customer.id,
+      });
+      const [{ stripe_session_id: sid }] = await ds.query(
+        'SELECT stripe_session_id FROM billing.checkout_session WHERE id = $1',
+        [setup.checkoutId],
+      );
+      await payInCheckout({ stripeMock: mock }, sid);
+      await new GetCheckoutSession(deps).execute({ actor: finance, id: setup.checkoutId });
+
+      // the scan covers every tenant in the database; this test follows its own tenant's requests
+      const scan = () => new CollectDueInvoices(deps).execute();
+      await scan();
+      await scan(); // a second replica scanning the same day
+      const queue = await eventsOf(tenantId, 'payment.collection_requested');
+      const unique = new Map(queue.map((e) => [`${e.data.invoice_id}:${e.data.attempt_key}`, e]));
+      const due = (await invoicesOf(d.booking_id)).filter((i) => i.dueDate <= '2026-10-21');
+      expect(unique.size).toBe(due.length); // duplicate requests share their attempt keys
+      expect(queue).toHaveLength(due.length * 2);
+
+      const worker = new ProcessCollectionRequest({ ...deps, logger: silentLogger });
+      const results = await Promise.all([...queue, ...queue].map((e) => worker.execute(e)));
+      expect(results.filter((r) => r.outcome === 'paid')).toHaveLength(due.length);
+      expect(results.filter((r) => r.outcome === 'repeat')).toHaveLength(
+        queue.length * 2 - due.length,
+      );
+      const charged = await ds.query(
+        "SELECT status, count(*)::int AS n FROM billing.payment_transaction WHERE trigger = 'scheduled' AND tenant_id = $1 GROUP BY status",
+        [tenantId],
+      );
+      expect(charged).toEqual([{ status: 'succeeded', n: due.length }]);
+      expect(mock.state.paymentIntents.size).toBe(due.length);
+
+      const outcomes = await eventsOf(tenantId, 'payment.charge_succeeded');
+      expect(outcomes).toHaveLength(due.length);
+      const mailDeps = { uow, clock, mailer };
+      const sendMail = (e) => new SendPaymentEmail(mailDeps).execute(e);
+      mailer.failNext('smtp down');
+      await expect(sendMail(outcomes[0])).rejects.toThrow('smtp down');
+      expect(
+        await ds.query('SELECT 1 FROM billing.email_log WHERE event_id = $1', [outcomes[0].id]),
+      ).toHaveLength(0); // rolled back with the event
+      await Promise.all([
+        sendMail(outcomes[0]),
+        sendMail(outcomes[0]),
+        ...outcomes.slice(1).map(sendMail),
+      ]);
+      expect(mailer.sent).toHaveLength(outcomes.length);
+      const logged = await ds.query(
+        'SELECT status, count(*)::int AS n FROM billing.email_log WHERE tenant_id = $1 GROUP BY status',
+        [tenantId],
+      );
+      expect(logged).toEqual([{ status: 'sent', n: outcomes.length }]);
+
+      // the day's history reads the ledger the worker wrote: every charged invoice, once, as paid
+      const history = new ListCollectionAttempts({ uow, clock });
+      const day = await history.execute({ actor: finance, runDate: '2026-10-21' });
+      expect(day.items).toHaveLength(due.length);
+      expect(day.items.every((a) => a.status === 'succeeded' && a.funds === 'sufficient')).toBe(
+        true,
+      );
+      expect(day.items[0]).toMatchObject({ customerName: 'Ali Raza', attemptNo: 1, reason: 'due' });
+      expect(day.summary).toMatchObject({ succeeded: due.length, failed: 0, skipped: 0 });
+      const runs = await new ListCollectionRuns({ uow }).execute({ actor: finance });
+      expect(runs.items[0]).toMatchObject({ runDate: '2026-10-21' });
+      const onlyFailed = await history.execute({
+        actor: finance,
+        runDate: '2026-10-21',
+        status: 'failed',
+      });
+      expect(onlyFailed.items).toEqual([]);
+    });
+
+    it('lets one replica claim the daily job and lists only invoices that can be charged', async () => {
+      const { tenantId, finance } = await tenant();
+      const d = await schedule(tenantId, { booked_at: '2026-05-01' });
+      await withCustomer(tenantId, d);
+      const { deps } = await stripeSetup();
+      const list = () =>
+        uow.read((r) => r.collection.listCollectable('2026-10-21', { limit: 100 }));
+      expect((await list()).filter((r) => r.tenantId === tenantId)).toEqual([]); // no saved card yet
+
+      await ds.query(
+        `INSERT INTO billing.payment_method (id, tenant_id, customer_id, stripe_payment_method_id, brand, last4, exp_month, exp_year, fingerprint, is_active)
+         VALUES ($1, $2, $3, $4, 'visa', '4242', 12, 2030, 'fp', true)`,
+        [uuid(7700), tenantId, d.customer.id, `pm_collect_${tenantId.slice(-6)}`],
+      );
+      const rows = (await list()).filter((r) => r.tenantId === tenantId);
+      const due = (await invoicesOf(d.booking_id)).filter((i) => i.dueDate <= '2026-10-21');
+      expect(rows.map((r) => r.invoiceId).sort()).toEqual(due.map((i) => i.id).sort());
+      expect(rows[0]).toMatchObject({ failures: 0, inFlight: false, lastFailureOn: null });
+      const page = await uow.read((r) =>
+        r.collection.listCollectable('2026-10-21', { after: rows[0].invoiceId, limit: 2 }),
+      );
+      expect(page.every((r) => r.invoiceId > rows[0].invoiceId)).toBe(true);
+
+      await ds.query(
+        'UPDATE billing.payment_method SET exp_year = 2026, exp_month = 9 WHERE id = $1',
+        [uuid(7700)],
+      );
+      expect((await list()).filter((r) => r.tenantId === tenantId)).toEqual([]); // expired in September
+
+      const claims = await Promise.all(
+        [1, 2, 3].map(() => uow.run((r) => r.jobRuns.claim('collect', '2030-01-01'))),
+      );
+      expect(claims.filter(Boolean)).toHaveLength(1);
+      await uow.run((r) => r.jobRuns.finish('collect', '2030-01-01', { result: { requested: 3 } }));
+      expect(
+        await ds.query(
+          "SELECT result FROM billing.job_run WHERE job = 'collect' AND run_date = '2030-01-01'",
+        ),
+      ).toEqual([{ result: { requested: 3 } }]);
+      await uow.run((r) => r.jobRuns.release('collect', '2030-01-01'));
+      expect(await uow.run((r) => r.jobRuns.claim('collect', '2030-01-01'))).toBe(true);
+      expect(finance).toBeTruthy();
+      expect(deps).toBeTruthy();
     });
 
     it('rolls back everything when a payment fails part-way: no ledger row, no event, no receipt number used', async () => {
@@ -941,17 +1203,24 @@ describe.skipIf(!available)('billing on PostgreSQL', () => {
 
   it('serves the whole service on the real stack: events in, payments through HTTP, summaries and audit out', async () => {
     const auth = await createTestAuth();
-    const gateway = createFakeCardGateway({ clock });
+    const stripeMock = await sharedStripeMock();
+    const gateway = createStripeGateway({
+      secretKey: 'sk_test_mock',
+      webhookSecret: 'whsec_mock',
+      apiBase: stripeMock.url,
+      maxNetworkRetries: 0,
+    });
     const app = composeBilling({
       uow,
       clock,
       gateway,
+      mailer: createMemoryMailer(),
+      stripe: { publishableKey: 'pk_test', returnUrl: 'http://app.test/return?c={CHECKOUT_ID}' },
       verifier: auth.verifier,
       logger: silentLogger,
       internalToken: 'test-internal-token',
       idempotencyStore: createIdempotencyStore(ds, { schema: 'billing' }),
       readyCheck: () => ds.query('SELECT 1'),
-      mockCard: true,
     });
     const { tenantId } = await tenant('e2e');
     const owner = await auth.bearer({ role: 'owner', tenantId });

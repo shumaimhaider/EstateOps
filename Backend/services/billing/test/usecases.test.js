@@ -4,8 +4,6 @@ import { TEST_TENANT_A, TEST_TENANT_B, eventsOfType } from '@estateops/platform/
 import { CreateSchedule } from '../src/installments/application/CreateSchedule.js';
 import { CancelBookingInvoices } from '../src/installments/application/CancelBookingInvoices.js';
 import { RecordPayment } from '../src/installments/application/RecordPayment.js';
-import { CreateCardPaymentIntent } from '../src/installments/application/CreateCardPaymentIntent.js';
-import { RecordCardPayment } from '../src/installments/application/RecordCardPayment.js';
 import { ChangeInvoiceStatus } from '../src/installments/application/ChangeInvoiceStatus.js';
 import { ListInstallments } from '../src/installments/application/ListInstallments.js';
 import { GetInstallment } from '../src/installments/application/GetInstallment.js';
@@ -24,8 +22,6 @@ import { GetCollectionStats } from '../src/stats/application/GetCollectionStats.
 import { ApplyTenant } from '../src/refs/application/ApplyTenant.js';
 import { ApplyCustomer } from '../src/refs/application/ApplyCustomer.js';
 import { CONFIRMED, actor, buildBillingTest, uuid } from './fakes.js';
-
-const CARD = { number: '4242 4242 4242 4242', expiry: '12/30', cvc: '123' };
 
 describe('billing use cases', () => {
   let t;
@@ -118,6 +114,17 @@ describe('billing use cases', () => {
         escalated: true,
         fine_amount: 480_000 + 5 * 160_000,
       });
+    });
+    it('tells sales to undo the booking when no schedule can be built, and creates nothing', async () => {
+      await schedule({ total_price: 0 });
+      expect(invoices()).toHaveLength(0);
+      expect(t.stores.bookingRefs?.size ?? 0).toBe(0);
+      expect(eventsOfType(t.events, 'schedule.created')).toHaveLength(0);
+      expect(eventsOfType(t.events, 'schedule.failed')[0].data).toEqual({
+        booking_id: uuid(500),
+        reason: 'The plan produces no invoices',
+      });
+      expect(t.auditEntries.at(-1)).toMatchObject({ action: 'schedule.failed' });
     });
     it('does nothing for a repeat, an already scheduled booking, or one cancelled before it arrived', async () => {
       const e = ev(EVENT.BOOKING_CONFIRMED, CONFIRMED());
@@ -323,120 +330,6 @@ describe('billing use cases', () => {
         booking_id: uuid(500),
       });
       expect(t.stores.bookingRefs.get(uuid(500)).status).toBe('completed');
-    });
-  });
-
-  describe('paying by card', () => {
-    let invoice;
-    const intent = (input = {}, a = finance, id = invoice.id) =>
-      new CreateCardPaymentIntent(t.deps).execute({ actor: a, id, input });
-    const record = (providerId, a = finance, id = invoice.id) =>
-      new RecordCardPayment(t.deps).execute({ actor: a, id, providerId });
-    const confirm = (i, card = CARD) =>
-      t.gateway.confirm({ providerId: i.providerId, clientSecret: i.clientSecret, card });
-    beforeEach(async () => {
-      await schedule({ booked_at: '2026-05-01' });
-      [, invoice] = invoices();
-    });
-
-    it('creates an intent, takes the card at the provider, then records it once with the charge as reference', async () => {
-      const i = await intent({ amount: 3_000_000 });
-      expect(i).toMatchObject({
-        amount: 3_000_000,
-        currency: 'PKR',
-        status: 'requires_payment_method',
-      });
-      expect(i.providerId).toMatch(/^pi_mock_/);
-      expect((await confirm(i)).ok).toBe(true);
-      const saved = await record(i.providerId);
-      expect(saved).toMatchObject({
-        paidAmount: 3_000_000,
-        status: 'overdue',
-        paymentSource: 'stripe',
-        method: 'card',
-      });
-      expect(saved.paymentReference).toMatch(/^ch_mock_/);
-      expect(t.stores.payments.at(-1)).toMatchObject({
-        source: 'stripe',
-        method: 'card',
-        stripeIntentId: i.providerId,
-        note: 'Card •••• 4242',
-      });
-      expect(t.auditEntries.at(-1).action).toBe('installment.card_payment');
-    });
-    it('records the same intent only once, however many times it is asked', async () => {
-      const i = await intent();
-      await confirm(i);
-      await record(i.providerId);
-      const again = await record(i.providerId);
-      expect(again.paidAmount).toBe(8_000_000);
-      expect(t.stores.payments).toHaveLength(1);
-    });
-    it('refuses to record a payment the provider has not confirmed, or one that was declined', async () => {
-      const i = await intent();
-      await expect(record(i.providerId)).rejects.toMatchObject({ code: 'PAYMENT_NOT_COMPLETED' });
-      const declined = await confirm(i, { ...CARD, number: '4000 0000 0000 0002' });
-      expect(declined).toMatchObject({
-        ok: false,
-        status: 402,
-        body: { error: { code: 'card_declined', message: 'Your card was declined.' } },
-      });
-      await expect(record(i.providerId)).rejects.toMatchObject({ code: 'PAYMENT_NOT_COMPLETED' });
-      expect(invoices()[1].paidAmount).toBe(0);
-    });
-    it('reports which card field is wrong', async () => {
-      const i = await intent();
-      expect((await confirm(i, { ...CARD, number: '1234 5678 9012 3456' })).body.error.code).toBe(
-        'incorrect_number',
-      );
-      expect((await confirm(i, { ...CARD, expiry: '01/20' })).body.error.code).toBe('expired_card');
-      expect((await confirm(i, { ...CARD, expiry: 'soon' })).body.error.code).toBe(
-        'invalid_expiry',
-      );
-      expect((await confirm(i, { ...CARD, cvc: '1' })).body.error.code).toBe('incorrect_cvc');
-      expect(
-        (await confirm(i, { ...CARD, number: '4000 0000 0000 9995' })).body.error.message,
-      ).toBe('Your card has insufficient funds.');
-    });
-    it('applies an adjusted invoice amount only once the card has succeeded', async () => {
-      const i = await intent({ adjustedAmount: 7_000_000, adjustmentReason: 'Discount' });
-      expect(i.amount).toBe(7_000_000);
-      expect(invoices()[1].amount).toBe(8_000_000);
-      await confirm(i);
-      expect(await record(i.providerId)).toMatchObject({
-        amount: 7_000_000,
-        originalAmount: 8_000_000,
-        status: 'paid',
-      });
-    });
-    it('rejects a payment whose invoice balance shrank in the meantime', async () => {
-      const i = await intent({ amount: 6_000_000 });
-      await confirm(i);
-      await pay(invoice.id, { method: 'cash', amount: 5_000_000 });
-      await expect(record(i.providerId)).rejects.toMatchObject({ code: 'BALANCE_CHANGED' });
-    });
-    it('refuses an intent for another invoice, an unknown payment, or a bad amount', async () => {
-      const i = await intent();
-      await confirm(i);
-      const other = invoices()[2];
-      await expect(record(i.providerId, finance, other.id)).rejects.toMatchObject({
-        code: 'PAYMENT_MISMATCH',
-      });
-      await expect(record('pi_nope')).rejects.toMatchObject({ code: 'NOT_FOUND' });
-      await expect(intent({ amount: 99_999_999 })).rejects.toMatchObject({
-        code: 'VALIDATION_ERROR',
-      });
-      await expect(intent({}, finance, uuid(404))).rejects.toMatchObject({ code: 'NOT_FOUND' });
-    });
-    it('needs payments.card, which a sales manager lacks', async () => {
-      await expect(intent({}, actor('sales_manager'))).rejects.toMatchObject({ code: 'FORBIDDEN' });
-      await expect(record('pi_x', actor('sales_manager'))).rejects.toMatchObject({
-        code: 'FORBIDDEN',
-      });
-    });
-    it('refuses a card payment on a settled invoice', async () => {
-      await pay(invoice.id);
-      await expect(intent()).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
     });
   });
 

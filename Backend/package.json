@@ -17,7 +17,12 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:ci": "vitest run --coverage"
+    "test:ci": "vitest run --coverage",
+    "db:migrate": "node db/migrate.js up",
+    "db:status": "node db/migrate.js status",
+    "db:new": "node db/migrate.js new",
+    "db:lock": "node db/migrate.js lock",
+    "test:e2e": "vitest run --config vitest.e2e.config.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

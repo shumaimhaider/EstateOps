@@ -2,6 +2,7 @@ import http from 'node:http';
 import express from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createCache, createMemoryClient } from '@estateops/platform';
 import { createTestAuth } from '@estateops/platform/testing';
 import { composeGateway } from '../src/main/compose.js';
 import { isPublic, resolveService } from '../src/routing/routes.js';
@@ -72,7 +73,13 @@ describe('gateway', () => {
       ['/installments/1/pay', 'billing'],
       ['/fine-rules/effective', 'billing'],
       ['/stats/collections', 'billing'],
-      ['/mock/payment-intents', 'billing'],
+      ['/checkout-sessions/abc', 'billing'],
+      ['/transactions?status=failed', 'billing'],
+      ['/customers/c1/payment-methods', 'billing'],
+      ['/customers/c1/payment-methods/p1/activate', 'billing'],
+      ['/customers/c1', 'customer'],
+      ['/customers/c1/portal-access/send-link', 'identity'],
+      ['/support-requests?status=open', 'customer'],
     ])('%s goes to %s', (path, service) => expect(resolveService(`${A}${path}`)).toBe(service));
 
     it('does not route internal or unknown paths', () => {
@@ -193,6 +200,39 @@ describe('gateway', () => {
     });
   });
 
+  describe('rate limiting shared through a cache', () => {
+    it('counts one person across two replicas, so the limit is exact', async () => {
+      const client = createMemoryClient();
+      const cache = createCache({ client, logger: silent });
+      const a = build({ cache, perUserPerMinute: 4 });
+      const b = build({ cache, perUserPerMinute: 4 });
+      const statuses = [];
+      for (let i = 0; i < 6; i += 1)
+        statuses.push(
+          (
+            await request(i % 2 ? a : b)
+              .get(`${A}/projects`)
+              .set(headers)
+          ).status,
+        );
+      expect(statuses.filter((s) => s === 200)).toHaveLength(4);
+      expect(statuses.filter((s) => s === 429)).toHaveLength(2);
+      const limited = await request(a).get(`${A}/projects`).set(headers);
+      expect(limited.headers['retry-after']).toBeDefined();
+    });
+
+    it('falls back to each replica’s own count when the cache is down, and keeps serving', async () => {
+      const client = createMemoryClient();
+      const cache = createCache({ client, logger: silent });
+      const app = build({ cache, perUserPerMinute: 3 });
+      client.failing = true;
+      const statuses = [];
+      for (let i = 0; i < 5; i += 1)
+        statuses.push((await request(app).get(`${A}/projects`).set(headers)).status);
+      expect(statuses).toEqual([200, 200, 200, 429, 429]);
+    });
+  });
+
   describe('rate limiting', () => {
     it('limits one person without affecting another', async () => {
       const limited = build({ perUserPerMinute: 3 });
@@ -232,6 +272,74 @@ describe('gateway', () => {
       t = 5000;
       limiter.take('fresh');
       expect(limiter.size()).toBe(1);
+    });
+  });
+
+  describe('customer portal routes', () => {
+    const P = '/api/v1/portal';
+    it.each([
+      ['/auth/login', 'identity'],
+      ['/auth/change-password', 'identity'],
+      ['/properties', 'sales'],
+      ['/properties/p1', 'sales'],
+      ['/properties/p1/invoices', 'billing'],
+      ['/properties/p1/contracts', 'contract'],
+      ['/invoices/i1/checkout-session', 'billing'],
+      ['/checkout-sessions/c1', 'billing'],
+      ['/payment-methods/setup-session', 'billing'],
+      ['/transactions?limit=5', 'billing'],
+      ['/contracts/k1/signing-session', 'contract'],
+      ['/profile', 'customer'],
+      ['/support-requests/s1/messages', 'customer'],
+    ])('%s goes to %s', (path, service) => expect(resolveService(`${P}${path}`)).toBe(service));
+
+    it('lets only sign-in and password links be used without a token', () => {
+      for (const p of ['login', 'refresh', 'logout', 'forgot-password', 'set-password'])
+        expect(isPublic(`${P}/auth/${p}`)).toBe(true);
+      expect(isPublic(`${P}/auth/me`)).toBe(false);
+      expect(isPublic(`${P}/auth/change-password`)).toBe(false);
+      expect(isPublic(`${P}/properties`)).toBe(false);
+    });
+
+    it('forwards a sign-in without a token, limited by address, and refuses other portal calls without one', async () => {
+      const ok = await request(app)
+        .post(`${P}/auth/login`)
+        .send({ tenant: 'pk', email: 'a@b.c', password: 'x' });
+      expect(ok.body).toMatchObject({ service: 'identity', url: `${P}/auth/login` });
+      expect((await request(app).get(`${P}/properties`)).status).toBe(401);
+      const customer = await auth.customerBearer({
+        customerId: '00000000-0000-4000-8000-000000000301',
+      });
+      const res = await request(app).get(`${P}/properties`).set(customer);
+      expect(res.body).toMatchObject({ service: 'sales', url: `${P}/properties` });
+      const tight = build({ perAddressPerMinute: 2 });
+      const statuses = [];
+      for (let i = 0; i < 4; i += 1)
+        statuses.push((await request(tight).post(`${P}/auth/login`).send({})).status);
+      expect(statuses).toEqual([200, 200, 429, 429]);
+    });
+  });
+
+  describe('provider webhooks', () => {
+    it('streams the Stripe webhook to billing byte for byte with no sign-in, and refuses other methods and paths', async () => {
+      const body = JSON.stringify({ id: 'evt_1', note: '  spaced   body  ' });
+      const res = await request(app)
+        .post('/webhooks/stripe')
+        .set('content-type', 'application/json')
+        .set('stripe-signature', 't=1,v1=abc')
+        .send(body);
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ service: 'billing', url: '/webhooks/stripe', body });
+      expect((await request(app).get('/webhooks/stripe')).status).toBe(404);
+      expect((await request(app).post('/webhooks/unknown').send({})).status).toBe(404);
+    });
+    it('limits webhooks by address, with a wider allowance than sign-in', async () => {
+      const tight = build({ perAddressPerMinute: 1 });
+      const statuses = [];
+      for (let i = 0; i < 25; i += 1)
+        statuses.push((await request(tight).post('/webhooks/stripe').send({})).status);
+      expect(statuses.slice(0, 20).every((s) => s === 200)).toBe(true);
+      expect(statuses).toContain(429);
     });
   });
 

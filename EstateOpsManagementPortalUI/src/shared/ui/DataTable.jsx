@@ -73,7 +73,7 @@ export default function DataTable({
         </details>
       </div>
       <Card padded={false} className="overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full border-collapse text-sm" aria-label={label}>
             <thead className="bg-surface-muted text-start text-xs uppercase tracking-wide text-content-muted">
               <tr>

@@ -9,13 +9,15 @@ export async function createJwtSigner({ privateKeyPem, ttlSeconds = 900 }) {
   const key = await importPKCS8(privateKeyPem, ALG);
   return {
     ttlSeconds,
-    /** claims: { sub, tenantId, role, name, permissions } */
+    /** claims: { sub, tenantId, role, name, permissions, kind?, customerId? } (kind 'customer' for portal sign-ins) */
     sign: (claims) =>
       new SignJWT({
         tenant_id: claims.tenantId,
         role: claims.role,
         name: claims.name,
         permissions: claims.permissions,
+        kind: claims.kind ?? 'staff',
+        ...(claims.customerId && { customer_id: claims.customerId }),
       })
         .setProtectedHeader({ alg: ALG })
         .setSubject(claims.sub)
@@ -39,6 +41,8 @@ export async function createJwtVerifier({ publicKeyPem }) {
           role: payload.role,
           name: payload.name,
           permissions: Array.isArray(payload.permissions) ? payload.permissions : [],
+          kind: payload.kind ?? 'staff',
+          customerId: payload.customer_id ?? null,
         };
       } catch (error) {
         const expired = error?.code === 'ERR_JWT_EXPIRED';

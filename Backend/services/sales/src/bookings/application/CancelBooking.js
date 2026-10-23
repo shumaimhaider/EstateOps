@@ -1,4 +1,4 @@
-import { NotFoundError, PERMISSION, assertCan } from '@estateops/kernel';
+import { ConflictError, NotFoundError, PERMISSION, assertCan } from '@estateops/kernel';
 import { cancelByStaff } from '../domain/booking.js';
 import { bookingCancelled } from './events.js';
 
@@ -7,12 +7,13 @@ import { bookingCancelled } from './events.js';
  * contracts voided as the event reaches the other services. input: { actor, id, reason? }
  */
 export class CancelBooking {
-  constructor({ uow, clock }) {
-    Object.assign(this, { uow, clock });
+  constructor({ uow, clock, payments = null }) {
+    Object.assign(this, { uow, clock, payments });
   }
 
   async execute({ actor, id, reason }) {
     assertCan(actor, PERMISSION.SALES_MANAGE);
+    await this.#assertNoPayments(actor.tenantId, id);
     return this.uow.run(async (repos) => {
       const current = await repos.bookings.findById(actor.tenantId, id, { lock: true });
       if (!current) throw new NotFoundError('Booking not found');
@@ -30,5 +31,25 @@ export class CancelBooking {
       await repos.outbox.add(bookingCancelled(saved, this.clock.now()));
       return saved;
     });
+  }
+
+  // Billing is the authority on money; sales' own copy of the figures can lag behind its events.
+  async #assertNoPayments(tenantId, bookingId) {
+    if (!this.payments) return;
+    let found;
+    try {
+      found = await this.payments.hasPayments({ tenantId, bookingId });
+    } catch {
+      throw new ConflictError(
+        'PAYMENT_CHECK_UNAVAILABLE',
+        'Could not confirm whether this booking has payments. Try again in a moment.',
+      );
+    }
+    if (found) {
+      throw new ConflictError(
+        'BOOKING_HAS_PAYMENTS',
+        'A booking with payments cannot be cancelled',
+      );
+    }
   }
 }

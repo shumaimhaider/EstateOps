@@ -8,6 +8,7 @@ import {
   createIdempotencyStore,
   createTypeormUow,
   silentLogger,
+  createMemoryMailer,
 } from '@estateops/platform';
 import {
   TEST_TENANT_A,
@@ -227,6 +228,99 @@ describe.skipIf(!available)('customer on PostgreSQL', () => {
     expect(byValue).toEqual([...byValue].sort((a, b) => b - a));
   });
 
+  it('keeps support threads: newest activity first, paged, searched, constrained and owner-checked', async () => {
+    const tenantId = newId();
+    const mk = (name, email) => ({
+      id: newId(),
+      tenantId,
+      fullName: name,
+      email,
+      phone: null,
+      idNumber: null,
+      city: null,
+      preferredLanguage: 'en',
+    });
+    const a = mk('Ali Raza', `a${newId().slice(0, 6)}@x.test`);
+    const b = mk('Bilal Khan', `b${newId().slice(0, 6)}@x.test`);
+    await uow.run(async (r) => {
+      await r.customers.insert(a);
+      await r.customers.insert(b);
+    });
+    const open = (customer, subject, at) => ({
+      request: {
+        id: newId(),
+        tenantId,
+        customerId: customer.id,
+        bookingId: null,
+        subject,
+        status: 'open',
+        createdAt: new Date(at),
+        lastMessageAt: new Date(at),
+        closedAt: null,
+      },
+      message: {
+        id: newId(),
+        tenantId,
+        requestId: null,
+        authorKind: 'customer',
+        authorName: customer.fullName,
+        body: `About ${subject}`,
+        createdAt: new Date(at),
+      },
+    });
+    const made = [];
+    for (const [c, subject, at] of [
+      [a, 'Receipt missing', '2026-10-21T09:00:00Z'],
+      [a, 'Change phone', '2026-10-21T10:00:00Z'],
+      [b, 'Payment plan', '2026-10-21T11:00:00Z'],
+    ]) {
+      const o = open(c, subject, at);
+      o.message.requestId = o.request.id;
+      made.push(o);
+      await uow.run((r) => r.support.insert(o.request, o.message));
+    }
+    const list = (f) => uow.read((r) => r.support.list(tenantId, f));
+    expect((await list({})).items.map((r) => r.subject)).toEqual([
+      'Payment plan',
+      'Change phone',
+      'Receipt missing',
+    ]);
+    expect((await list({ customerId: a.id })).items.map((r) => r.subject)).toEqual([
+      'Change phone',
+      'Receipt missing',
+    ]);
+    const first = await list({ limit: 2 });
+    expect(first.next).toBeTruthy();
+    expect((await list({ limit: 2, cursor: first.next })).items.map((r) => r.subject)).toEqual([
+      'Receipt missing',
+    ]);
+    expect((await list({ q: 'PHONE' })).items).toHaveLength(1);
+    expect((await list({ q: 'ali' })).items).toHaveLength(2);
+    expect((await list({ q: '%' })).items).toHaveLength(0);
+    expect((await list({})).items[0]).toMatchObject({
+      customerName: 'Bilal Khan',
+      messageCount: 1,
+    });
+    expect(await uow.read((r) => r.support.countOpen(tenantId, a.id))).toBe(2);
+    expect(await uow.read((r) => r.support.countWaiting(tenantId))).toBe(3);
+
+    const request = made[0].request;
+    await uow.run((r) => r.support.save({ ...request, status: 'closed', closedAt: new Date() }));
+    expect(await uow.read((r) => r.support.countOpen(tenantId, a.id))).toBe(1);
+    expect(await uow.read((r) => r.support.findById(newId(), request.id))).toBeNull();
+    expect(await uow.read((r) => r.support.findById(tenantId, 'not-a-uuid'))).toBeNull();
+    await expect(
+      ds.query("UPDATE customer.support_request SET status = 'lost' WHERE id = $1", [request.id]),
+    ).rejects.toMatchObject({ driverError: { constraint: 'support_status_chk' } });
+    await expect(
+      ds.query(
+        "INSERT INTO customer.support_message (id, tenant_id, request_id, author_kind, author_name, body) VALUES ($1, $2, $3, 'customer', 'x', '')",
+        [newId(), tenantId, request.id],
+      ),
+    ).rejects.toMatchObject({ driverError: { constraint: 'support_body_chk' } });
+    expect(await uow.read((r) => r.bookingSummaries.ownedBy(tenantId, a.id, newId()))).toBe(false);
+  });
+
   it('serves the whole service on the real stack, with currency learned from the tenant event', async () => {
     const auth = await createTestAuth();
     const app = composeCustomer({
@@ -237,6 +331,7 @@ describe.skipIf(!available)('customer on PostgreSQL', () => {
       internalToken: 'test-internal-token',
       idempotencyStore: createIdempotencyStore(ds, { schema: 'customer' }),
       readyCheck: () => ds.query('SELECT 1'),
+      mailer: createMemoryMailer(),
     });
     const tenantId = newId();
     await deliverEvent(

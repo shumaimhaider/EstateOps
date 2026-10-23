@@ -5,6 +5,8 @@ import {
   createUnitRequest,
   listUnitsQuery,
   toMediaResponse,
+  toUploadResponse,
+  uploadUrlRequest,
   toPlacement,
   toUnitFields,
   toUnitResponse,
@@ -13,12 +15,12 @@ import {
 
 const ACTIONS = ['block', 'unblock', 'hold', 'release'];
 
-export function createUnitRoutes(uc) {
+export function createUnitRoutes(uc, { fileUrl }) {
   const router = express.Router();
 
   /** Re-reads a unit with names, history and pictures: the response after every write. */
   const detail = async (req, id) =>
-    toUnitResponse(await uc.getUnit.execute({ actor: actorFrom(req), id }));
+    toUnitResponse({ ...(await uc.getUnit.execute({ actor: actorFrom(req), id })), fileUrl });
 
   router.get('/units', async (req, res) => {
     const { project_id: projectId, ...rest } = listUnitsQuery.parse(req.query);
@@ -41,7 +43,7 @@ export function createUnitRoutes(uc) {
   });
   router.get('/units/:id', async (req, res) => {
     const view = await uc.getUnit.execute({ actor: actorFrom(req), id: req.params.id });
-    res.json(toUnitResponse(view));
+    res.json(toUnitResponse({ ...view, fileUrl }));
   });
   router.patch('/units/:id', async (req, res) => {
     const body = updateUnitRequest.parse(req.body);
@@ -62,15 +64,35 @@ export function createUnitRoutes(uc) {
       res.json(await detail(req, req.params.id));
     });
   }
+  router.post('/units/:id/media/upload-url', async (req, res) => {
+    const body = uploadUrlRequest.parse(req.body);
+    res.status(201).json(
+      toUploadResponse(
+        await uc.requestUnitMediaUpload.execute({
+          actor: actorFrom(req),
+          unitId: req.params.id,
+          kind: body.kind ?? 'image',
+          filename: body.filename,
+          contentType: body.content_type,
+          size: body.size,
+        }),
+      ),
+    );
+  });
   router.post('/units/:id/media', async (req, res) => {
     const body = createMediaRequest.parse(req.body);
-    res
-      .status(201)
-      .json(
-        toMediaResponse(
-          await uc.addUnitMedia.execute({ actor: actorFrom(req), unitId: req.params.id, ...body }),
-        ),
-      );
+    res.status(201).json(
+      toMediaResponse(
+        await uc.addUnitMedia.execute({
+          actor: actorFrom(req),
+          unitId: req.params.id,
+          kind: body.kind,
+          assetId: body.asset_id,
+          caption: body.caption,
+        }),
+        fileUrl,
+      ),
+    );
   });
   router.delete('/units/:id/media/:mediaId', async (req, res) => {
     await uc.removeUnitMedia.execute({

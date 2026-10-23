@@ -1,10 +1,11 @@
 import { parseDto } from '@/shared/api/contract.js';
-import { contractDtoSchema } from '@/shared/api/dtos/contract.dto.js';
+import { contractDtoSchema, signingSessionDtoSchema } from '@/shared/api/dtos/contract.dto.js';
 import {
   fieldErrorsFromApi,
   fromApi,
   pandaDocToApi,
   reviseToApi,
+  sessionFromApi,
   uploadToApi,
 } from '@/shared/api/dtos/contract.mapper.js';
 import { pageDtoSchema } from '@/shared/api/dtos/page.dto.js';
@@ -45,7 +46,15 @@ export function createContractsRepository({ transport = contractsRest } = {}) {
     void: async (id, opts) => one(await transport.act(id, 'void', undefined, opts)),
     revise: (id, input, opts) =>
       withFieldErrors(async () => one(await transport.act(id, 'revise', reviseToApi(input), opts))),
-    simulateEvent: async (id, event, opts) => one(await transport.simulate(id, event, opts)),
+    /** An embedded signing session: the address to show the buyer's signing page at. */
+    startSigning: async (id, opts) =>
+      sessionFromApi(
+        parseDto(
+          signingSessionDtoSchema,
+          await transport.startSigning(id, opts),
+          'signing session',
+        ),
+      ),
   };
 }
 

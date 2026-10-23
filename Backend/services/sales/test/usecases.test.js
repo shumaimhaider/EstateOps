@@ -20,6 +20,7 @@ import { CreateBooking } from '../src/bookings/application/CreateBooking.js';
 import { CancelBooking } from '../src/bookings/application/CancelBooking.js';
 import { ListBookings } from '../src/bookings/application/ListBookings.js';
 import { GetBooking } from '../src/bookings/application/GetBooking.js';
+import { SweepStuckBookings } from '../src/bookings/application/SweepStuckBookings.js';
 import { FollowSaga } from '../src/bookings/application/FollowSaga.js';
 import { ApplyUnit } from '../src/refs/application/ApplyUnit.js';
 import { ApplyCustomer } from '../src/refs/application/ApplyCustomer.js';
@@ -431,6 +432,37 @@ describe('sales use cases', () => {
       expect(eventsOfType(t.events, 'booking.cancelled')).toHaveLength(before + 1);
       expect(eventsOfType(t.events, 'booking.confirmed')).toHaveLength(0);
     });
+    it('rolls the booking back when billing cannot build the schedule, so the unit, invoices and contracts are undone', async () => {
+      const b = await book();
+      await saga('confirmed', event(EVENT.UNIT_BOOKED, { booking_id: b.id, unit_id: b.unitId }));
+      const e = event(EVENT.SCHEDULE_FAILED, {
+        booking_id: b.id,
+        reason: 'The plan produces no invoices',
+      });
+      await saga('scheduleFailed', e);
+      expect(t.stores.bookings.get(b.id)).toMatchObject({
+        status: 'cancelled',
+        cancelReason: 'SCHEDULE_FAILED: The plan produces no invoices',
+      });
+      expect(eventsOfType(t.events, 'booking.cancelled')[0].data).toMatchObject({
+        booking_id: b.id,
+        unit_id: b.unitId,
+      });
+      expect(t.auditEntries.some((a) => a.action === 'booking.abort')).toBe(true);
+      const events = t.events.length;
+      expect((await saga('scheduleFailed', e)).duplicate).toBe(true);
+      expect(t.events).toHaveLength(events);
+    });
+    it('does not roll back a booking that already has a schedule', async () => {
+      const b = await book();
+      await saga('confirmed', event(EVENT.UNIT_BOOKED, { booking_id: b.id, unit_id: b.unitId }));
+      await saga('scheduled', event(EVENT.SCHEDULE_CREATED, { booking_id: b.id, invoices: 13 }));
+      await saga(
+        'scheduleFailed',
+        event(EVENT.SCHEDULE_FAILED, { booking_id: b.id, reason: 'late' }),
+      );
+      expect(t.stores.bookings.get(b.id).status).toBe('active');
+    });
     it('keeps money figures from billing, ignoring older summaries', async () => {
       const b = await book();
       const summary = (seq, received) =>
@@ -462,6 +494,36 @@ describe('sales use cases', () => {
         nextDueDate: '2026-11-21',
         summarySeq: 4,
       });
+    });
+  });
+
+  describe('saga timeout', () => {
+    const later = { now: () => new Date('2026-10-21T09:30:00.000Z') };
+    const sweep = (timeoutMs = 10 * 60_000, clock = later) =>
+      new SweepStuckBookings({ ...t.deps, clock, timeoutMs }).execute();
+    it('cancels bookings stuck waiting on other services and tells them to undo their part', async () => {
+      const stuckRequested = await book();
+      expect(await sweep()).toEqual({ cancelled: 1 });
+      expect(t.stores.bookings.get(stuckRequested.id)).toMatchObject({
+        status: 'cancelled',
+        cancelReason: 'SAGA_TIMEOUT: stuck in requested',
+      });
+      expect(eventsOfType(t.events, 'booking.cancelled')).toHaveLength(1);
+    });
+    it('also catches a confirmed booking whose schedule never arrived, but leaves active ones and young ones', async () => {
+      const b = await book();
+      await saga('confirmed', event(EVENT.UNIT_BOOKED, { booking_id: b.id, unit_id: b.unitId }));
+      expect(await sweep(60 * 60_000)).toEqual({ cancelled: 0 }); // not old enough yet
+      expect(await sweep()).toEqual({ cancelled: 1 });
+      expect(t.stores.bookings.get(b.id).cancelReason).toBe('SAGA_TIMEOUT: stuck in confirmed');
+      expect(await sweep()).toEqual({ cancelled: 0 }); // nothing left, repeat is harmless
+    });
+    it('does not touch an active booking', async () => {
+      const b = await book();
+      await saga('confirmed', event(EVENT.UNIT_BOOKED, { booking_id: b.id, unit_id: b.unitId }));
+      await saga('scheduled', event(EVENT.SCHEDULE_CREATED, { booking_id: b.id, invoices: 13 }));
+      expect(await sweep()).toEqual({ cancelled: 0 });
+      expect(t.stores.bookings.get(b.id).status).toBe('active');
     });
   });
 
@@ -498,6 +560,40 @@ describe('sales use cases', () => {
       await expect(
         new CancelBooking(t.deps).execute({ actor: sales, id: b.id }),
       ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+    });
+    it('asks billing, the authority on money, and refuses even when sales has not heard of the payment yet', async () => {
+      const b = await book();
+      const asked = [];
+      const payments = (answer) => ({
+        hasPayments: async (q) => {
+          asked.push(q);
+          if (answer instanceof Error) throw answer;
+          return answer;
+        },
+      });
+      // sales' own figure still says nothing was paid, billing says otherwise
+      expect(t.stores.bookings.get(b.id).receivedAmount).toBe(0);
+      await expect(
+        new CancelBooking({ ...t.deps, payments: payments(true) }).execute({
+          actor: sales,
+          id: b.id,
+        }),
+      ).rejects.toMatchObject({ code: 'BOOKING_HAS_PAYMENTS' });
+      expect(t.stores.bookings.get(b.id).status).not.toBe('cancelled');
+      expect(asked[0]).toEqual({ tenantId: sales.tenantId, bookingId: b.id });
+      // billing cannot be reached: fail safe, change nothing, tell the user to retry
+      await expect(
+        new CancelBooking({ ...t.deps, payments: payments(new Error('down')) }).execute({
+          actor: sales,
+          id: b.id,
+        }),
+      ).rejects.toMatchObject({ code: 'PAYMENT_CHECK_UNAVAILABLE' });
+      expect(t.stores.bookings.get(b.id).status).not.toBe('cancelled');
+      await new CancelBooking({ ...t.deps, payments: payments(false) }).execute({
+        actor: sales,
+        id: b.id,
+      });
+      expect(t.stores.bookings.get(b.id).status).toBe('cancelled');
     });
     it('needs sales.manage and hides other tenants’ bookings', async () => {
       const b = await book();

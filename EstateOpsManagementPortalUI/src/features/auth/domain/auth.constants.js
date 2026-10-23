@@ -11,6 +11,4 @@ export const ROLE_LABEL_KEYS = Object.freeze({
   auditor: 'auth:roles.auditor',
 });
 
-export const MOCK_PASSWORD_HINT = 'Passw0rd!';
-export const MOCK_CODE_HINT = '123456';
 export const LOGIN_PATH = '/login';

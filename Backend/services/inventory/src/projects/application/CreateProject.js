@@ -21,7 +21,7 @@ export class CreateProject {
       if (await repos.projects.findByName(actor.tenantId, project.name)) {
         throw new ConflictError('PROJECT_NAME_TAKEN', 'A project with this name already exists');
       }
-      await repos.projects.insert(project);
+      const stored = await repos.projects.insert(project);
       await repos.audit.record({
         tenantId: actor.tenantId,
         actor,
@@ -31,7 +31,7 @@ export class CreateProject {
         after: { name: project.name, kind: project.kind },
       });
       await repos.outbox.add(projectUpserted(project, this.clock.now()));
-      return project;
+      return stored;
     });
   }
 }

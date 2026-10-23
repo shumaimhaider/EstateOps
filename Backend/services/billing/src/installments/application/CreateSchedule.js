@@ -1,6 +1,6 @@
 import { consumeOnce, today as todayOf } from '@estateops/kernel';
 import { buildSchedule, toInvoices } from '../domain/schedule.js';
-import { scheduleCreated } from './events.js';
+import { scheduleCreated, scheduleFailed } from './events.js';
 import { refreshBooking } from './refreshBooking.js';
 
 const SYSTEM = { userId: null, name: 'Sales' };
@@ -31,6 +31,34 @@ export class CreateSchedule {
         if (!tenant) throw new Error(`Tenant ${tenantId} is not known to billing yet`);
         const settings = await repos.settings.get(tenantId);
 
+        // The schedule is pure arithmetic: if it cannot be built it never will be, so retrying is
+        // pointless. Tell sales to undo the booking (compensation) instead of failing forever.
+        let rows;
+        try {
+          rows = buildSchedule({
+            totalPrice: d.total_price,
+            downPct: d.plan.down_pct,
+            installmentCount: d.plan.installment_count,
+            bookedAt: d.booked_at,
+            today: todayOf(this.clock),
+            graceDays: settings.graceDays,
+          });
+          if (rows.length === 0) throw new Error('The plan produces no invoices');
+        } catch (error) {
+          await repos.audit.record({
+            tenantId,
+            actor: SYSTEM,
+            action: 'schedule.failed',
+            subjectType: 'booking',
+            subjectId: d.booking_id,
+            after: { reason: error.message },
+          });
+          await repos.outbox.add(
+            scheduleFailed(tenantId, d.booking_id, error.message, this.clock.now()),
+          );
+          return;
+        }
+
         const ref = {
           bookingId: d.booking_id,
           tenantId,
@@ -51,14 +79,6 @@ export class CreateSchedule {
         };
         await repos.bookingRefs.insert(ref);
 
-        const rows = buildSchedule({
-          totalPrice: d.total_price,
-          downPct: d.plan.down_pct,
-          installmentCount: d.plan.installment_count,
-          bookedAt: d.booked_at,
-          today: todayOf(this.clock),
-          graceDays: settings.graceDays,
-        });
         const last = await repos.counters.next(tenantId, 'invoice', rows.length);
         const invoices = toInvoices({
           booking: ref,

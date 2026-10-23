@@ -9,9 +9,3 @@ export const CONTRACT_STATUS_META = Object.freeze({
 
 export const CONTRACT_TEMPLATES = Object.freeze(['sale_agreement', 'payment_plan_addendum']);
 export const MAX_CONTRACT_BYTES = 10 * 1024 * 1024;
-
-/** Signing events PandaDoc would send; the mock lets staff trigger them. */
-export const MOCK_SIGNER_EVENTS = Object.freeze({
-  sent: ['viewed', 'signed', 'declined'],
-  viewed: ['signed', 'declined'],
-});

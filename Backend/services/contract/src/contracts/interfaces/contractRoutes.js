@@ -1,8 +1,8 @@
 import express from 'express';
 import multer from 'multer';
-import { fieldError } from '@estateops/kernel';
+import { fieldError, toIso } from '@estateops/kernel';
 import { MAX_FILE_BYTES } from '../domain/contract.js';
-import { actorFrom, pageResponse } from '@estateops/platform';
+import { actorFrom, customerFrom, pageResponse } from '@estateops/platform';
 import {
   listContractsQuery,
   pandaDocRequest,
@@ -74,6 +74,17 @@ export function createContractRoutes(uc, { mockSigner = false } = {}) {
       ),
     );
   });
+  router.post('/contracts/:id/signing-session', async (req, res) => {
+    const session = await uc.createSigningSession.execute({
+      actor: actorFrom(req),
+      id: req.params.id,
+    });
+    res.status(201).json({
+      contract_id: session.contractId,
+      url: session.url,
+      expires_at: session.expiresAt,
+    });
+  });
   for (const action of ['send', 'void', 'revise']) {
     router.post(`/contracts/:id/${action}`, async (req, res) => {
       const { note } = reviseRequest.parse(req.body ?? {});
@@ -116,5 +127,46 @@ export function createContractRoutes(uc, { mockSigner = false } = {}) {
       );
     });
   }
+  return router;
+}
+
+/** What a customer sees of a contract: its state and whether they can sign or download it. */
+export const toPortalContractResponse = (c) => ({
+  id: c.id,
+  booking_id: c.bookingId,
+  title: c.title,
+  kind: c.kind,
+  status: c.status,
+  version: c.version,
+  sent_at: c.sentAt ? toIso(c.sentAt) : null,
+  signed_at: c.signedAt ? toIso(c.signedAt) : null,
+  can_sign: c.kind === 'pandadoc' && ['sent', 'viewed'].includes(c.status),
+  can_download: c.status === 'signed',
+});
+
+/** The customer portal's contracts: their own, read-only, signing on screen, and the signed copy. */
+export function createPortalContractRoutes(uc) {
+  const router = express.Router();
+  const me = (req) => ({ ...customerFrom(req) });
+  router.get('/properties/:bookingId/contracts', async (req, res) => {
+    const items = await uc.listMyContracts.execute({
+      customer: me(req),
+      bookingId: req.params.bookingId,
+    });
+    res.json({ data: items.map(toPortalContractResponse), next_cursor: null });
+  });
+  router.post('/contracts/:id/signing-session', async (req, res) => {
+    const s = await uc.createSigningSession.execute({ actor: me(req), id: req.params.id });
+    res.status(201).json({ contract_id: s.contractId, url: s.url, expires_at: s.expiresAt });
+  });
+  router.get('/contracts/:id/file', async (req, res) => {
+    const file = await uc.downloadMyContract.execute({ customer: me(req), id: req.params.id });
+    const name = String(file.fileName).replace(/[^\w. -]/g, '_');
+    res.set({
+      'Content-Type': file.contentType,
+      'Content-Disposition': `attachment; filename="${name}"`,
+    });
+    res.send(file.buffer);
+  });
   return router;
 }

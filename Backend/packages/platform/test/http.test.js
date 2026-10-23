@@ -55,6 +55,9 @@ describe('error mapping (the one place status codes are decided)', () => {
       toHttpError({ driverError: { code: '23503' }, code: undefined }.driverError).status,
     ).toBe(409);
     expect(toHttpError({ code: '23514' }).status).toBe(422);
+    // a value that is not shaped like an id cannot name anything
+    expect(toHttpError({ driverError: { code: '22P02' } }).status).toBe(404);
+    expect(toHttpError({ code: '22P02' }).status).toBe(404);
     const hidden = toHttpError(new Error('select * from secrets failed'));
     expect(hidden).toMatchObject({ status: 500, body: { code: 'INTERNAL_ERROR' } });
     expect(JSON.stringify(hidden.body)).not.toContain('secrets');

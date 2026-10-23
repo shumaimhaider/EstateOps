@@ -7,8 +7,8 @@ const METHODS = ['cash', 'bank_transfer', 'online', 'cheque'];
 const MIN_REASON = 3;
 
 /**
- * Validates the take-payment form for one invoice. `mode` is 'manual' (mark received by hand)
- * or 'card'. With `adjust` on, the invoice amount is changed first, so the payable balance is
+ * Validates the take-payment form for one invoice. `mode` is 'manual' (mark received by hand),
+ * 'card' (Stripe's embedded form) or 'saved' (the customer's saved card). With `adjust` on, the invoice amount is changed first, so the payable balance is
  * the new amount minus what is already paid.
  */
 export function createPaymentFormSchema({ currency, invoice, mode, t }) {
@@ -20,25 +20,16 @@ export function createPaymentFormSchema({ currency, invoice, mode, t }) {
     adjustedAmount: z.string(),
     adjustmentReason: z.string(),
   });
+  // card payments (embedded form or saved card) only need the amount and any adjustment here:
+  // the card itself is typed into Stripe's form, never into ours
   const shape =
-    mode === 'card'
+    mode === 'manual'
       ? base.extend({
-          cardNumber: z
-            .string()
-            .refine(
-              (v) => /^\d{13,19}$/.test(v.replace(/\s/g, '')),
-              t('collections:pay.errors.cardNumber'),
-            ),
-          cardExpiry: z
-            .string()
-            .regex(/^(0[1-9]|1[0-2])\s*\/\s*\d{2}$/, t('collections:pay.errors.cardExpiry')),
-          cardCvc: z.string().regex(/^\d{3,4}$/, t('collections:pay.errors.cardCvc')),
-        })
-      : base.extend({
           method: z.enum(METHODS),
           reference: z.string().max(60, t('collections:pay.errors.reference')),
           receivedOn: z.string(),
-        });
+        })
+      : base.extend({ saveCard: z.boolean() });
 
   return shape.superRefine((values, ctx) => {
     let payable = invoice?.balance.minor ?? 0;
@@ -83,9 +74,3 @@ export function toPayment(values, currency) {
     adjustmentReason: values.adjust ? values.adjustmentReason.trim() : '',
   };
 }
-
-export const toCard = (values) => ({
-  number: values.cardNumber.replace(/\s/g, ''),
-  expiry: values.cardExpiry.replace(/\s/g, ''),
-  cvc: values.cardCvc,
-});

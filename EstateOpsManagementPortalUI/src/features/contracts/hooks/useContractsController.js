@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/shared/ui/toast/toastContext.js';
+import { contractKeys } from './contracts.keys.js';
 import {
   useContractActionMutation,
   useCreatePandaDocMutation,
-  useSimulateContractEventMutation,
+  useStartSigningMutation,
   useUploadSignedContractMutation,
 } from './useContractMutations.js';
 
@@ -15,9 +17,21 @@ export function useContractsController(bookingId) {
   const upload = useUploadSignedContractMutation();
   const create = useCreatePandaDocMutation();
   const act = useContractActionMutation();
-  const simulate = useSimulateContractEventMutation();
+  const signing = useStartSigningMutation();
+  const queryClient = useQueryClient();
+  const [sign, setSign] = useState(null); // { contract, session }
   const [dialog, setDialog] = useState(null); // { type: 'upload'|'create'|'revise'|'void', contract? }
   const close = () => setDialog(null);
+  const refresh = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: contractKeys.all }),
+    [queryClient],
+  );
+  // The signer's choice reaches us twice: instantly from the signing page, and for real from
+  // PandaDoc's webhook a moment later, so the list is refreshed a few times to catch the second.
+  const signerFinished = useCallback(async () => {
+    await refresh();
+    for (const wait of [1500, 4000, 9000]) setTimeout(refresh, wait);
+  }, [refresh]);
   const done = (key) => {
     toast.show({ tone: 'success', message: t(key) });
     close();
@@ -28,7 +42,7 @@ export function useContractsController(bookingId) {
   return {
     dialog,
     close,
-    busy: act.isPending || simulate.isPending,
+    busy: act.isPending,
     creating: create.isPending,
     openUpload: () => setDialog({ type: 'upload' }),
     openCreate: () => setDialog({ type: 'create' }),
@@ -54,7 +68,23 @@ export function useContractsController(bookingId) {
       act
         .mutateAsync({ id: contract.id, action: 'void' })
         .then(() => done('actions.voided'), failed),
-    onSimulate: (contract, event) =>
-      simulate.mutate({ id: contract.id, event }, { onError: failed }),
+    signing: {
+      contract: sign?.contract ?? null,
+      session: sign?.session ?? null,
+      loading: signing.isPending,
+      error: signing.error,
+      onEvent: (event) => signerFinished(sign.contract, event),
+      close: () => {
+        setSign(null);
+        signing.reset();
+      },
+    },
+    onSignNow: (contract) => {
+      setSign({ contract, session: null });
+      signing.mutate(
+        { id: contract.id },
+        { onSuccess: (session) => setSign({ contract, session }) },
+      );
+    },
   };
 }

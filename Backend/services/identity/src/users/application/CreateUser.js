@@ -26,7 +26,7 @@ export class CreateUser {
       if (await repos.users.findByEmail(normalizeEmail(email))) {
         throw new ConflictError('EMAIL_TAKEN', 'That email already has an account');
       }
-      await repos.users.insert(user);
+      const stored = await repos.users.insert(user);
       await repos.audit.record({
         tenantId: actor.tenantId,
         actor,
@@ -35,7 +35,7 @@ export class CreateUser {
         subjectId: user.id,
         after: { email: user.email, role: user.role },
       });
-      return { user, totpSecret };
+      return { user: stored, totpSecret };
     });
   }
 }

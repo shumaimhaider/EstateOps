@@ -7,7 +7,7 @@ import {
   deliverEvent,
   eventsOfType,
 } from '@estateops/platform/testing';
-import { buildInventoryTest } from './fakes.js';
+import { buildInventoryTest, putFile } from './fakes.js';
 
 const BASE = '/api/v1/admin';
 const UNIT_BODY = {
@@ -293,32 +293,82 @@ describe('inventory API', () => {
       expect((await patch(`/units/${booked.id}`, { list_price: 1 })).body.code).toBe('UNIT_LOCKED');
       expect((await del(`/units/${booked.id}`)).body.code).toBe('UNIT_HAS_HISTORY');
     });
-    it('keeps pictures for flats, not plots', async () => {
+    it('uploads pictures for flats, not plots, through signed URLs', async () => {
       const plot = await makeUnit();
       const flat = await makeUnit({ unit_no: 'T-1', kind: 'flat' });
-      expect(
-        (await post(`/units/${plot.id}/media`, { kind: 'image', url: 'https://cdn.test/a.jpg' }))
-          .status,
-      ).toBe(409);
-      const media = await post(`/units/${flat.id}/media`, {
-        kind: 'image',
-        url: 'https://cdn.test/a.jpg',
-        caption: 'Living room',
+      const ask = (unit, over = {}) =>
+        post(`/units/${unit.id}/media/upload-url`, {
+          kind: 'image',
+          filename: 'Front View.png',
+          content_type: 'image/png',
+          size: 1000,
+          ...over,
+        });
+      expect((await ask(plot)).status).toBe(409);
+      expect((await ask(flat, { content_type: 'text/html' })).status).toBe(422);
+      const signed = await ask(flat);
+      expect(signed.status).toBe(201);
+      expect(signed.body).toEqual({
+        asset_id: expect.any(String),
+        upload: {
+          method: 'PUT',
+          url: expect.stringContaining('front-view.png'),
+          headers: { 'Content-Type': 'image/png' },
+          expires_in: 900,
+        },
       });
+      const attach = (body) => post(`/units/${flat.id}/media`, { kind: 'image', ...body });
+      expect((await attach({ asset_id: signed.body.asset_id })).status).toBe(422); // nothing uploaded yet
+      putFile(t, signed.body.asset_id);
+      const media = await attach({ asset_id: signed.body.asset_id, caption: 'Living room' });
       expect(media.status).toBe(201);
       expect(media.body).toEqual({
         id: expect.any(String),
         kind: 'image',
-        url: 'https://cdn.test/a.jpg',
+        url: expect.stringMatching(
+          /^https:\/\/cdn\.test\/bucket\/[^/]+\/unit\/[^/]+\/unit_image\/[^/]+-front-view\.png$/,
+        ),
+        file_name: 'Front View.png',
         caption: 'Living room',
       });
-      expect((await get(`/units/${flat.id}`)).body.media).toHaveLength(1);
-      expect(
-        (await post(`/units/${flat.id}/media`, { kind: 'video', url: 'ftp://x' })).status,
-      ).toBe(422);
+      expect((await get(`/units/${flat.id}`)).body.media).toEqual([media.body]);
+      expect((await attach({ asset_id: signed.body.asset_id })).status).toBe(409);
+      expect((await post(`/units/${flat.id}/media`, { kind: 'video', asset_id: 'x' })).status).toBe(
+        404,
+      );
       expect((await del(`/units/${flat.id}/media/${media.body.id}`)).status).toBe(204);
       expect((await del(`/units/${flat.id}/media/${media.body.id}`)).status).toBe(404);
       expect((await del(`/units/${flat.id}/media/not-a-uuid`)).status).toBe(404);
+    });
+    it('uploads a site map and shows it on the project map', async () => {
+      const id = project.id;
+      const put = (path, body, h = owner) => request(t.app).put(`${BASE}${path}`).set(h).send(body);
+      expect((await get(`/projects/${id}/map`)).body.image_url).toBeNull();
+      const signed = await post(`/projects/${id}/map/upload-url`, {
+        filename: 'Site Plan.pdf',
+        content_type: 'application/pdf',
+        size: 5000,
+      });
+      expect(signed.status).toBe(201);
+      expect((await put(`/projects/${id}/map`, { asset_id: signed.body.asset_id })).status).toBe(
+        422,
+      );
+      putFile(t, signed.body.asset_id);
+      const map = await put(`/projects/${id}/map`, { asset_id: signed.body.asset_id });
+      expect(map.status).toBe(200);
+      expect(map.body).toMatchObject({
+        image_name: 'Site Plan.pdf',
+        image_url: expect.stringMatching(/site_map\/[^/]+-site-plan\.pdf$/),
+      });
+      expect(
+        (
+          await post(`/projects/${id}/map/upload-url`, {
+            filename: 'x.exe',
+            content_type: 'application/x-msdownload',
+            size: 1,
+          })
+        ).status,
+      ).toBe(422);
     });
   });
 

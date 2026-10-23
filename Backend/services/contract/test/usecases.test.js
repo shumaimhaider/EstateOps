@@ -141,8 +141,8 @@ describe('contract domain', () => {
     const as = (status, kind = 'pandadoc', perms = MANAGE) =>
       contractActions({ ...draft(), status, kind }, perms);
     expect(as('draft')).toEqual(['send', 'revise', 'void']);
-    expect(as('sent')).toEqual(['revise', 'void']);
-    expect(as('viewed')).toEqual(['revise', 'void']);
+    expect(as('sent')).toEqual(['revise', 'void', 'sign_on_screen']);
+    expect(as('viewed')).toEqual(['revise', 'void', 'sign_on_screen']);
     expect(as('declined')).toEqual(['revise', 'void']);
     expect(as('signed')).toEqual([]); // a signed PandaDoc contract is final
     expect(as('voided')).toEqual([]);
@@ -424,7 +424,7 @@ describe('contract use cases', () => {
       ).rejects.toThrow('db down');
       expect(t.files.files.size).toBe(0);
     });
-    it('downloads an uploaded file, not a PandaDoc contract', async () => {
+    it('downloads an uploaded file, and a PandaDoc contract only once it is signed', async () => {
       const { contract } = await new UploadSignedContract(t.deps).execute({
         actor: sales,
         bookingId: uuid(500),
@@ -439,7 +439,7 @@ describe('contract use cases', () => {
       const { contract: draft } = await buildContractTest().then(async (x) => ((t = x), create()));
       await expect(
         new DownloadContractFile(t.deps).execute({ actor: sales, id: draft.id }),
-      ).rejects.toMatchObject({ code: 'NO_FILE' });
+      ).rejects.toMatchObject({ code: 'NOT_SIGNED' });
       await expect(
         new DownloadContractFile(t.deps).execute({ actor: sales, id: uuid(404) }),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });

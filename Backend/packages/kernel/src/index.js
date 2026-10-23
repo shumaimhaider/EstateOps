@@ -9,3 +9,4 @@ export * from './consume.js';
 export * from './permissions.js';
 export * from './actor.js';
 export * from './validation.js';
+export * from './cache.js';

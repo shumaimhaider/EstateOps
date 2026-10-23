@@ -8,11 +8,23 @@ import { MAX_FAILED_ATTEMPTS, MFA_TTL_MS, expiresIn, windowStart } from '../doma
  * input: { email, password, ip } -> { mfaToken }
  */
 export class Login {
-  constructor({ uow, hasher, tokens, clock }) {
-    Object.assign(this, { uow, hasher, tokens, clock });
+  constructor({ uow, hasher, tokens, clock, throttle = null }) {
+    Object.assign(this, { uow, hasher, tokens, clock, throttle });
   }
 
   async execute({ email, password, ip }) {
+    await this.throttle?.assertAllowed({ email, ip });
+    try {
+      const result = await this.#signIn({ email, password, ip });
+      await this.throttle?.succeeded({ email, ip });
+      return result;
+    } catch (error) {
+      if (error?.code === 'INVALID_CREDENTIALS') await this.throttle?.failed({ email, ip });
+      throw error;
+    }
+  }
+
+  async #signIn({ email, password, ip }) {
     const now = this.clock.now();
     const user = await this.uow.read((repos) => repos.users.findByEmail(normalizeEmail(email)));
     const invalid = new UnauthenticatedError(

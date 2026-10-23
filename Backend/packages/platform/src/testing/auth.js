@@ -24,14 +24,37 @@ export async function createTestAuth({ fresh = false } = {}) {
       permissions,
       userId = newId(),
       name = 'Test User',
+      kind,
+      customerId,
     } = {}) {
       return signer.sign({
+        kind,
+        customerId,
         sub: userId,
         tenantId,
         role,
         name,
         permissions: permissions ?? DEFAULT_ROLE_PERMISSIONS[role] ?? ALL_PERMISSIONS,
       });
+    },
+    /** A customer-portal sign-in: a token of kind 'customer' that names the customer it is for. */
+    async customerBearer({
+      customerId,
+      tenantId = TEST_TENANT_A,
+      name = 'Test Customer',
+      accountId = newId(),
+    } = {}) {
+      return {
+        Authorization: `Bearer ${await signer.sign({
+          sub: accountId,
+          tenantId,
+          role: 'customer',
+          name,
+          permissions: [],
+          kind: 'customer',
+          customerId,
+        })}`,
+      };
     },
     /** `{ Authorization }` header object for supertest `.set()`. */
     async bearer(options) {

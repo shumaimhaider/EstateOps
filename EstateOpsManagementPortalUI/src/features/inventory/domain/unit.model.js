@@ -17,10 +17,11 @@ import PropTypes from 'prop-types';
  *   isCorner: boolean, parkingSpaces: number, attributes: Record<string, unknown>,
  *   status: UnitStatus, listPrice: Money, geometry: Record<string, unknown>|null,
  *   allowedActions: string[], bookingId: string|null,
- *   media: { id: string, kind: string, url: string, caption: string }[],
+ *   media: UnitMedia[],
  *   statusHistory: StatusChange[],
  *   createdAt: string, updatedAt: string, createdBy: string|null
  * }} Unit
+ * @typedef {{ id: string, kind: string, url: string, caption: string, fileName: string|null }} UnitMedia
  * @typedef {{
  *   projectId: string, unitNo: string, kind: UnitKind, area: AreaValue,
  *   bedrooms: number|null, facing: string|null, view: string|null, isCorner: boolean,

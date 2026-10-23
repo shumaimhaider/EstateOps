@@ -14,9 +14,11 @@ const WRITES = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
  * Concurrent first attempts are protected by the database constraints behind each use case.
  */
 export const idempotency = (store) => async (req, res, next) => {
-  const key = req.get('idempotency-key');
-  if (!key || !WRITES.has(req.method) || !req.auth) return next();
-  if (key.length > 200) throw fieldError('Idempotency-Key', 'Key is too long');
+  const header = req.get('idempotency-key');
+  if (!header || !WRITES.has(req.method) || !req.auth) return next();
+  if (header.length > 200) throw fieldError('Idempotency-Key', 'Key is too long');
+  // a customer's keys are theirs alone: another customer of the same tenant can never replay them
+  const key = req.auth.customerId ? `c:${req.auth.customerId}:${header}` : header;
 
   const route = `${req.method} ${req.baseUrl}${req.path}`;
   const requestHash = hashBody(req.body);

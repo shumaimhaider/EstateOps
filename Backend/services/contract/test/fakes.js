@@ -39,6 +39,8 @@ export function makeContractRepos(clock) {
         },
         findById: async (t, id) =>
           s.contracts.get(id)?.tenantId === t ? clone(s.contracts.get(id)) : null,
+        findByProviderDocumentId: async (documentId) =>
+          clone([...s.contracts.values()].find((k) => k.providerDocumentId === documentId)),
         listForBooking: async (t, bookingId) =>
           [...s.contracts.values()]
             .filter((k) => k.tenantId === t && k.bookingId === bookingId)
@@ -97,7 +99,7 @@ export function createMemoryFileStore() {
   };
 }
 
-export async function buildContractTest() {
+export async function buildContractTest({ esign = createFakeESignProvider() } = {}) {
   const memory = makeContractRepos(clock);
   memory.stores.bookingRefs.set(uuid(500), {
     bookingId: uuid(500),
@@ -111,7 +113,6 @@ export async function buildContractTest() {
   const fake = createFakeUow(() => memory.repos);
   const auth = await createTestAuth();
   const files = createMemoryFileStore();
-  const esign = createFakeESignProvider();
   const deps = {
     uow: fake.uow,
     clock,

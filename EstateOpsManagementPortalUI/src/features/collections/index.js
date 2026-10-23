@@ -12,7 +12,6 @@ export { default as AgeingChart } from './components/AgeingChart.jsx';
 
 export { useInvoicesQuery } from './hooks/useInvoicesQuery.js';
 export { useRecordPaymentMutation } from './hooks/useRecordPaymentMutation.js';
-export { useCardPaymentMutation } from './hooks/useCardPaymentMutation.js';
 export { useEscalationsQuery } from './hooks/useEscalationsQuery.js';
 export { useSendNoticeMutation } from './hooks/useSendNoticeMutation.js';
 export { useCollectionsStatsQuery } from './hooks/useCollectionsStatsQuery.js';

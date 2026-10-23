@@ -7,6 +7,7 @@ import {
   createIdempotencyStore,
   createTypeormUow,
   silentLogger,
+  createMemoryMailer,
 } from '@estateops/platform';
 import { createTestAuth, createTestDatabase, postgresAvailable } from '@estateops/platform/testing';
 import { createTokenService } from '../src/auth/infrastructure/tokens.js';
@@ -254,6 +255,143 @@ describe.skipIf(!available)('identity on PostgreSQL', () => {
     });
   });
 
+  describe('customer portal accounts', () => {
+    const accountRow = (tenantId, over = {}) => ({
+      id: newId(),
+      tenantId,
+      customerId: newId(),
+      email: `c${newId().slice(0, 8)}@example.test`,
+      fullName: 'Ali Raza',
+      passwordHash: null,
+      status: 'invited',
+      invitedAt: new Date(),
+      ...over,
+    });
+
+    it('keeps one account per customer and one email per tenant, and an active account always has a password', async () => {
+      const a = tenantRow();
+      const b = tenantRow();
+      await run(async (r) => {
+        await r.tenants.insert(a);
+        await r.tenants.insert(b);
+      });
+      const first = accountRow(a.id);
+      await run((r) => r.customerAccounts.insert(first, new Date()));
+      await expect(
+        run((r) => r.customerAccounts.insert(accountRow(a.id, { email: first.email }), new Date())),
+      ).rejects.toMatchObject({ code: 'PORTAL_EMAIL_TAKEN' });
+      // the same address is fine for another developer
+      await run((r) =>
+        r.customerAccounts.insert(accountRow(b.id, { email: first.email }), new Date()),
+      );
+      await expect(
+        ds.query("UPDATE identity.customer_account SET status = 'active' WHERE id = $1", [
+          first.id,
+        ]),
+      ).rejects.toMatchObject({ driverError: { constraint: 'customer_account_password_chk' } });
+      await expect(
+        ds.query(
+          "UPDATE identity.customer_account SET email = 'MiXed@Example.test' WHERE id = $1",
+          [first.id],
+        ),
+      ).rejects.toMatchObject({ driverError: { constraint: 'customer_account_email_chk' } });
+      await expect(
+        ds.query("UPDATE identity.customer_account SET status = 'frozen' WHERE id = $1", [
+          first.id,
+        ]),
+      ).rejects.toMatchObject({ driverError: { constraint: 'customer_account_status_chk' } });
+    });
+
+    it('lets a one-time link be used by exactly one of several simultaneous requests', async () => {
+      const t = tenantRow();
+      const account = accountRow(t.id);
+      await run(async (r) => {
+        await r.tenants.insert(t);
+        await r.customerAccounts.insert(account, new Date());
+        await r.accountTokens.insert({
+          id: newId(),
+          tenantId: t.id,
+          accountId: account.id,
+          purpose: 'invite',
+          tokenHash: `h-${account.id}`,
+          expiresAt: new Date(Date.now() + 60_000),
+        });
+      });
+      const link = await run((r) => r.accountTokens.findByHash(`h-${account.id}`));
+      const wins = await Promise.all(
+        Array.from({ length: 6 }, () => run((r) => r.accountTokens.markUsed(link.id, new Date()))),
+      );
+      expect(wins.filter(Boolean)).toHaveLength(1);
+      await expect(
+        ds.query("UPDATE identity.account_token SET purpose = 'login' WHERE id = $1", [link.id]),
+      ).rejects.toMatchObject({ driverError: { constraint: 'account_token_purpose_chk' } });
+    });
+
+    it('ignores an older profile event, closes open links, counts recent ones and ends sessions', async () => {
+      const t = tenantRow();
+      const account = accountRow(t.id);
+      await run(async (r) => {
+        await r.tenants.insert(t);
+        await r.customerAccounts.insert(account, '2026-10-21T10:00:00Z');
+      });
+      expect(
+        await run((r) =>
+          r.customerAccounts.applyProfile(
+            account.id,
+            { email: account.email, fullName: 'Old' },
+            '2026-10-20T10:00:00Z',
+          ),
+        ),
+      ).toBe(false);
+      expect(
+        await run((r) =>
+          r.customerAccounts.applyProfile(
+            account.id,
+            { email: account.email, fullName: 'New' },
+            '2026-10-22T10:00:00Z',
+          ),
+        ),
+      ).toBe(true);
+      expect((await run((r) => r.customerAccounts.findById(t.id, account.id))).fullName).toBe(
+        'New',
+      );
+
+      for (const n of [1, 2]) {
+        await run((r) =>
+          r.accountTokens.insert({
+            id: newId(),
+            tenantId: t.id,
+            accountId: account.id,
+            purpose: 'reset',
+            tokenHash: `x${n}-${account.id}`,
+            expiresAt: new Date(Date.now() + 60_000),
+          }),
+        );
+      }
+      expect(
+        await run((r) => r.accountTokens.countSince(account.id, new Date(Date.now() - 60_000))),
+      ).toBe(2);
+      await run((r) => r.accountTokens.closeOpen(account.id, new Date()));
+      expect(
+        (await run((r) => r.accountTokens.findByHash(`x1-${account.id}`))).usedAt,
+      ).toBeTruthy();
+
+      await run((r) =>
+        r.customerRefreshTokens.insert({
+          id: newId(),
+          tenantId: t.id,
+          accountId: account.id,
+          tokenHash: `rt-${account.id}`,
+          expiresAt: new Date(Date.now() + 60_000),
+        }),
+      );
+      await run((r) => r.customerRefreshTokens.revokeAllForAccount(account.id));
+      expect(
+        await run((r) => r.customerRefreshTokens.findByHash(`rt-${account.id}`)),
+      ).toBeUndefined();
+    });
+  });
+
   describe('the whole service on the real stack', () => {
     it('bootstraps a tenant, signs in, changes a role and sees it at the next sign-in', async () => {
       const auth = await createTestAuth();
@@ -271,6 +409,7 @@ describe.skipIf(!available)('identity on PostgreSQL', () => {
         bootstrapToken: 'bootstrap-token-1',
         idempotencyStore: createIdempotencyStore(ds, { schema: 'identity' }),
         readyCheck: () => ds.query('SELECT 1'),
+        mailer: createMemoryMailer(),
       });
       const headers = {
         'x-internal-token': 'internal-token-1',

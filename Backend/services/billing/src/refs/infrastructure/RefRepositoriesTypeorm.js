@@ -92,6 +92,17 @@ export class CustomerRefRepositoryTypeorm {
     this.manager = manager;
   }
 
+  async find(tenantId, customerId) {
+    const rows = await this.manager.query(
+      'SELECT customer_id, full_name, phone, email FROM billing.customer_ref WHERE tenant_id = $1 AND customer_id = $2',
+      [tenantId, customerId],
+    );
+    const r = rows[0];
+    return r
+      ? { customerId: r.customer_id, fullName: r.full_name, phone: r.phone, email: r.email }
+      : null;
+  }
+
   upsert(c, sourceAt) {
     return ref(
       this.manager,

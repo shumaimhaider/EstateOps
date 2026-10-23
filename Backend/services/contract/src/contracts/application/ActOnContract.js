@@ -58,10 +58,13 @@ export class ActOnContract {
     const all = await repos.contracts.listForBooking(actor.tenantId, contract.bookingId, {
       lock: true,
     });
+    const booking = await repos.bookingRefs.findById(actor.tenantId, contract.bookingId);
     const { documentId } = await this.esign.createDocument({
       template: contract.template,
       signerEmail: contract.signerEmail,
+      signerName: booking?.customerName,
       bookingId: contract.bookingId,
+      unitNo: booking?.unitNo,
     });
     const next = reviseContract(contract, {
       note,
@@ -71,7 +74,7 @@ export class ActOnContract {
     });
     await changeStatus({ repos, clock: this.clock, actor, contract, action: 'revise' });
     await this.esign.voidDocument(contract.providerDocumentId);
-    await repos.contracts.insert(next);
+    const stored = await repos.contracts.insert(next);
     await repos.audit.record({
       tenantId: actor.tenantId,
       actor,
@@ -81,6 +84,6 @@ export class ActOnContract {
       after: { bookingId: next.bookingId, version: next.version, supersedes: contract.id },
     });
     await repos.outbox.add(contractStatusChanged(next, this.clock.now()));
-    return withActions(next, actor);
+    return withActions(stored, actor);
   }
 }

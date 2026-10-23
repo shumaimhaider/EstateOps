@@ -26,6 +26,8 @@ export const projectMapDtoSchema = z.object({
   project_name: z.string(),
   width: z.number(),
   height: z.number(),
+  image_url: z.string().nullable().optional(),
+  image_name: z.string().nullable().optional(),
   blocks: z.array(
     z.object({
       id: z.uuid(),

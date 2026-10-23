@@ -6,6 +6,14 @@ const make = (tenantId, type, data, now) =>
 export const scheduleCreated = (ref, count, now) =>
   make(ref.tenantId, EVENT.SCHEDULE_CREATED, { booking_id: ref.bookingId, invoices: count }, now);
 
+export const scheduleFailed = (tenantId, bookingId, reason, now) =>
+  make(
+    tenantId,
+    EVENT.SCHEDULE_FAILED,
+    { booking_id: bookingId, reason: String(reason).slice(0, 200) },
+    now,
+  );
+
 export const bookingFullyPaid = (ref, now) =>
   make(ref.tenantId, EVENT.BOOKING_FULLY_PAID, { booking_id: ref.bookingId }, now);
 

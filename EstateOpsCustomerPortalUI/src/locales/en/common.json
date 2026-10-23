@@ -1,0 +1,57 @@
+{
+  "app": { "name": "My Properties", "skipToContent": "Skip to content" },
+  "nav": {
+    "main": "Main menu",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "properties": "My properties",
+    "support": "Support",
+    "account": "Account"
+  },
+  "actions": {
+    "retry": "Try again",
+    "loadMore": "Load more",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close",
+    "done": "Done"
+  },
+  "states": {
+    "errorTitle": "Something went wrong",
+    "errorGeneric": "Please try again. If it keeps happening, contact support.",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "That page does not exist or has moved.",
+    "goHome": "Back to my properties",
+    "empty": "Nothing here yet",
+    "loading": "Loading…"
+  },
+  "dashboard": {
+    "title": "My properties",
+    "welcome": "Welcome, {{name}}",
+    "none": "You do not have any properties with {{developer}} yet.",
+    "needsAttention": "Needs your attention"
+  },
+  "property": {
+    "back": "All properties",
+    "tabs": {
+      "schedule": "Payment schedule",
+      "contracts": "Contracts",
+      "payments": "Card payments"
+    },
+    "contact": "Ask about this property"
+  },
+  "account": {
+    "title": "Account",
+    "profile": "Your details",
+    "cards": "Payment cards",
+    "password": "Password",
+    "fields": {
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "city": "City",
+      "language": "Language",
+      "idNumber": "ID number"
+    }
+  }
+}

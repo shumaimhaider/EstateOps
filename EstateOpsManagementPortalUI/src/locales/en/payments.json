@@ -1,0 +1,99 @@
+{
+  "checkout": {
+    "title": "Pay by card",
+    "loading": "Loading the secure card form…",
+    "confirming": "Confirming your payment with Stripe…",
+    "poweredBy": "Secure card form by Stripe. Card details never reach EstateOps.",
+    "mockNote": "Test mode: this is a stand-in for Stripe's form.",
+    "testHint": "Test cards: 4242 4242 4242 4242 pays, 4000 0000 0000 0002 is declined, 4000 0000 0000 9995 has insufficient funds.",
+    "cardNumber": "Card number",
+    "expiry": "Expiry (MM/YY)",
+    "cvc": "Security code (CVC)",
+    "pay": "Pay",
+    "paying": "Paying…",
+    "cancel": "Cancel",
+    "done": "Done",
+    "result": {
+      "succeeded": "Payment received. The invoice has been updated.",
+      "refunded": "The invoice changed while the card was being charged, so the card payment was refunded. The invoice was not changed.",
+      "canceled": "The checkout expired before it was paid. Nothing was charged.",
+      "failed": "The payment did not go through: {{message}}",
+      "cardSaved": "Card saved.",
+      "pending": "Stripe has not confirmed this payment yet. Check the transaction list in a moment."
+    },
+    "errors": {
+      "number": "Enter the card number",
+      "expiry": "Enter the expiry as MM/YY",
+      "cvc": "Enter the 3 or 4 digit security code"
+    }
+  },
+  "cards": {
+    "title": "Saved cards",
+    "hint": "Cards saved for this customer. The active card is the one charged for saved-card payments; only one is active at a time.",
+    "add": "Add a card",
+    "addTitle": "Add a card",
+    "empty": "No saved cards yet.",
+    "active": "Active",
+    "expired": "Expired",
+    "expires": "Expires {{month}}/{{year}}",
+    "makeActive": "Make active",
+    "makeActiveLabel": "Make {{brand}} ending {{last4}} the active card",
+    "remove": "Remove",
+    "removeLabel": "Remove {{brand}} ending {{last4}}",
+    "removeTitle": "Remove this card?",
+    "removeMessage": "{{brand}} ending {{last4}} is deleted at Stripe and can no longer be charged. If it is the active card, the newest remaining card takes over.",
+    "removed": "Card removed",
+    "activated": "{{brand}} ending {{last4}} is now the active card",
+    "addedBy": "Added by {{name}}",
+    "brand": "{{brand}} ending {{last4}}",
+    "loadError": "Could not load saved cards",
+    "saved": "Card saved"
+  },
+  "transactions": {
+    "title": "Card transactions",
+    "subtitle": "Every card payment attempt, with what Stripe answered.",
+    "empty": "No card transactions yet.",
+    "loadError": "Could not load transactions",
+    "label": "Card transactions",
+    "columns": {
+      "when": "When",
+      "invoice": "Invoice",
+      "amount": "Amount",
+      "card": "Card",
+      "status": "Status",
+      "how": "How",
+      "reason": "Reason"
+    },
+    "status": {
+      "pending": "Pending",
+      "succeeded": "Paid",
+      "failed": "Failed",
+      "refunded": "Refunded",
+      "canceled": "Canceled"
+    },
+    "trigger": {
+      "staff_checkout": "Card form (staff)",
+      "staff_saved_card": "Saved card (staff)",
+      "customer_checkout": "Card form (customer)",
+      "customer_saved_card": "Saved card (customer)",
+      "scheduled": "Automatic collection"
+    },
+    "filterStatus": "Status",
+    "all": "All",
+    "details": "Details",
+    "detailsLabel": "Details of the {{amount}} transaction on {{when}}",
+    "detailTitle": "Transaction",
+    "stripeResponse": "Stripe's answer",
+    "ids": "Stripe references",
+    "paymentIntent": "Payment intent",
+    "charge": "Charge",
+    "refund": "Refund",
+    "close": "Close"
+  },
+  "charge": {
+    "savedCard": "Charge saved card",
+    "savedCardWith": "Charge saved card ({{brand}} ending {{last4}})",
+    "failed": "The saved card was not charged: {{message}}",
+    "success": "Saved card charged for {{invoice}}"
+  }
+}

@@ -35,6 +35,8 @@ export function mapFromApi(dto) {
     projectName: dto.project_name,
     width: dto.width,
     height: dto.height,
+    imageUrl: dto.image_url ?? null,
+    imageName: dto.image_name ?? null,
     blocks: dto.blocks.map((b) => ({
       id: b.id,
       name: b.name,

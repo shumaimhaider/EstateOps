@@ -92,21 +92,6 @@ function adjustmentToApi(payment) {
   };
 }
 
-/** Start a card payment: part amount and/or an adjusted invoice amount. */
-export const paymentIntentToApi = (payment) => ({
-  amount: payment.amountMinor ?? undefined,
-  ...adjustmentToApi(payment),
-});
-
-/** @returns {{ paymentIntentId: string, clientSecret: string, amount: import('../../lib/money.js').Money }} */
-export const intentFromApi = (dto) => ({
-  paymentIntentId: dto.payment_intent_id,
-  clientSecret: dto.client_secret,
-  amount: money(dto.amount, dto.currency),
-});
-
-export const cardPaymentToApi = (paymentIntentId) => ({ payment_intent_id: paymentIntentId });
-
 export function fieldErrorsFromApi(fieldErrors) {
   return Object.fromEntries(
     Object.entries(fieldErrors ?? {}).map(([wire, message]) => [

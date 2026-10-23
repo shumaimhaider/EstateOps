@@ -31,11 +31,7 @@
     "revise": "Revise",
     "void": "Void",
     "voided": "Contract voided",
-    "mock": {
-      "viewed": "Mock: signer opened it",
-      "signed": "Mock: signer signed",
-      "declined": "Mock: signer declined"
-    }
+    "signNow": "Sign on screen"
   },
   "upload": {
     "open": "Upload signed contract",
@@ -73,10 +69,26 @@
     "cancel": "Cancel",
     "done": "New draft version created",
     "failed": "Could not revise the contract: {{message}}",
-    "errors": { "note": "Say what is being changed" }
+    "errors": {
+      "note": "Say what is being changed"
+    }
   },
   "void": {
     "title": "Void contract",
     "message": "Void {{title}}? It stays on record but is no longer valid."
+  },
+  "signing": {
+    "title": "Sign {{title}}",
+    "hint": "The buyer signs here, in PandaDoc's own signing page. Hand the screen to {{email}}.",
+    "loading": "Opening the signing page…",
+    "frameTitle": "PandaDoc signing page",
+    "mockNote": "Test mode: this stands in for PandaDoc's signing page.",
+    "sign": "Sign the document",
+    "decline": "Decline to sign",
+    "close": "Done",
+    "signed": "Signed. The contract is now final.",
+    "declined": "The buyer declined to sign.",
+    "checking": "Waiting for PandaDoc to confirm…",
+    "failed": "Could not open the signing page: {{message}}"
   }
 }

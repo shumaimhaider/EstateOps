@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ValidationError } from '@estateops/kernel';
 import { createProject, updateProject } from '../src/projects/domain/project.js';
+import { createFileAsset, markReady } from '../src/files/domain/fileAsset.js';
 import {
   createBlock,
   createFloor,
@@ -180,18 +181,19 @@ describe('unit pictures', () => {
         tenantId: 't',
         unit: flat,
         kind: 'image',
-        url: 'https://cdn.test/a.jpg',
+        fileId: 'f-1',
         caption: 'Living room',
       }),
     ).toMatchObject({ unitId: flat.id, kind: 'image' });
     expect(() =>
-      createMedia({ tenantId: 't', unit: unit(), kind: 'image', url: 'https://cdn.test/a.jpg' }),
+      createMedia({ tenantId: 't', unit: unit(), kind: 'image', fileId: 'f-1' }),
     ).toThrow(expect.objectContaining({ code: 'NO_MEDIA_ON_PLOTS' }));
   });
-  it('checks kind and address', () => {
-    expect(
-      fields(() => createMedia({ tenantId: 't', unit: flat, kind: 'video', url: 'ftp://x' })),
-    ).toEqual(['kind', 'url']);
+  it('checks kind and file', () => {
+    expect(fields(() => createMedia({ tenantId: 't', unit: flat, kind: 'video' }))).toEqual([
+      'kind',
+      'file',
+    ]);
   });
 });
 
@@ -243,5 +245,34 @@ describe('site plan layout', () => {
   it('copes with no blocks, and with a block without units', () => {
     expect(layoutProject([], new Map(), new Map())).toEqual({ blocks: [], units: [] });
     expect(layoutProject([{ id: 'E' }], new Map(), new Map()).units).toEqual([]);
+  });
+});
+
+describe('file assets', () => {
+  const base = {
+    tenantId: 't',
+    ownerType: 'unit',
+    ownerId: 'u',
+    purpose: 'unit_image',
+    storedName: 'a.jpg',
+    originalName: '  A.JPG ',
+    contentType: 'image/jpeg',
+    size: 10,
+  };
+  it('starts pending and becomes ready only when storage matches', () => {
+    const a = createFileAsset(base);
+    expect(a).toMatchObject({ status: 'pending', originalName: 'A.JPG' });
+    expect(markReady(a, { size: 10, contentType: 'image/jpeg' }).status).toBe('ready');
+    expect(() => markReady(a, null)).toThrow(expect.objectContaining({ code: 'VALIDATION_ERROR' }));
+    expect(() => markReady(a, { size: 11, contentType: 'image/jpeg' })).toThrow();
+    expect(() => markReady(a, { size: 10, contentType: 'image/png' })).toThrow();
+    expect(() =>
+      markReady({ ...a, status: 'ready' }, { size: 10, contentType: 'image/jpeg' }),
+    ).toThrow(expect.objectContaining({ code: 'UPLOAD_ALREADY_USED' }));
+  });
+  it('checks purpose and name', () => {
+    expect(
+      fields(() => createFileAsset({ ...base, purpose: 'x', originalName: ' ', contentType: '' })),
+    ).toEqual(['purpose', 'filename', 'content_type']);
   });
 });

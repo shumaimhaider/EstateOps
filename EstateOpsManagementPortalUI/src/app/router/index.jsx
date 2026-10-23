@@ -21,6 +21,9 @@ const SalesPage = lazy(() => import('@/pages/sales/SalesPage.jsx'));
 const BookingDetailPage = lazy(() => import('@/pages/sales/BookingDetailPage.jsx'));
 const CustomersPage = lazy(() => import('@/pages/customers/CustomersPage.jsx'));
 const CustomerDetailPage = lazy(() => import('@/pages/customers/CustomerDetailPage.jsx'));
+const TransactionsPage = lazy(() => import('@/pages/payments/TransactionsPage.jsx'));
+const CollectionRunsPage = lazy(() => import('@/pages/collections/CollectionRunsPage.jsx'));
+const SupportPage = lazy(() => import('@/pages/support/SupportPage.jsx'));
 const FineRatesPage = lazy(() => import('@/pages/settings/FineRatesPage.jsx'));
 const PermissionsPage = lazy(() => import('@/pages/settings/PermissionsPage.jsx'));
 
@@ -78,6 +81,11 @@ export const routes = [
           { path: 'inventory/units/:unitId', ...page(<UnitDetailPage />, 'units.view') },
           { path: 'sales', ...page(<SalesPage />, 'sales.view') },
           { path: 'sales/:bookingId', ...page(<BookingDetailPage />, 'sales.view') },
+          { path: 'payments/transactions', ...page(<TransactionsPage />, 'sales.view') },
+          { path: 'payments/collections', ...page(<CollectionRunsPage />, 'stats.view') },
+          { path: 'payments/collections/:date', ...page(<CollectionRunsPage />, 'stats.view') },
+          { path: 'support', ...page(<SupportPage />, 'customers.view') },
+          { path: 'support/:requestId', ...page(<SupportPage />, 'customers.view') },
           { path: 'customers', ...page(<CustomersPage />, 'customers.view') },
           { path: 'customers/:customerId', ...page(<CustomerDetailPage />, 'customers.view') },
           { path: 'settings/fines', ...page(<FineRatesPage />, 'fines.view') },

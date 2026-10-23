@@ -41,6 +41,10 @@ export const useContractActionMutation = () =>
       : contractsRepository[action](id, opts),
   );
 
-/** Mock only. variables: { id, event: 'viewed' | 'signed' | 'declined' } */
-export const useSimulateContractEventMutation = () =>
-  useContractMutation(({ id, event }, opts) => contractsRepository.simulateEvent(id, event, opts));
+/** Opens an embedded signing session for a sent contract. variables: { id } */
+export function useStartSigningMutation() {
+  return useMutation({
+    mutationFn: ({ id }) =>
+      contractsRepository.startSigning(id, { idempotencyKey: crypto.randomUUID() }),
+  });
+}

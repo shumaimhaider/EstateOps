@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  cardPaymentToApi,
-  fieldErrorsFromApi,
-  paymentIntentToApi,
-  paymentToApi,
-} from './installment.mapper.js';
+import { fieldErrorsFromApi, paymentToApi } from './installment.mapper.js';
 
 describe('payment mappers', () => {
   it('sends the adjustment only when the invoice amount is being changed', () => {
@@ -27,14 +22,6 @@ describe('payment mappers', () => {
       adjusted_amount: 900,
       adjustment_reason: 'Discount',
     });
-  });
-
-  it('starts a card payment with the amount and adjustment, and records it by intent id', () => {
-    expect(paymentIntentToApi({ amountMinor: 50 })).toEqual({ amount: 50 });
-    expect(paymentIntentToApi({ adjustedAmountMinor: 90, adjustmentReason: 'x' })).toMatchObject({
-      adjusted_amount: 90,
-    });
-    expect(cardPaymentToApi('pi_1')).toEqual({ payment_intent_id: 'pi_1' });
   });
 
   it('maps server field errors to form fields', () => {

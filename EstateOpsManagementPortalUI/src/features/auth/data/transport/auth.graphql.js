@@ -48,16 +48,6 @@ const ME = /* GraphQL */ `
   }
   ${USER_FIELDS}
 `;
-const DEV_ACCOUNTS = /* GraphQL */ `
-  query DevAccounts {
-    devAccounts {
-      email
-      name
-      role
-      tenant_name
-    }
-  }
-`;
 
 export const authGraphql = {
   login: async (input) => (await graphqlClient.mutate(LOGIN, { input })).login,
@@ -66,5 +56,4 @@ export const authGraphql = {
   refresh: async (input) => (await graphqlClient.mutate(REFRESH, { input })).refreshToken,
   logout: async () => (await graphqlClient.mutate(LOGOUT, {})).logout,
   me: async ({ signal } = {}) => (await graphqlClient.query(ME, undefined, { signal })).me,
-  devAccounts: async () => (await graphqlClient.query(DEV_ACCOUNTS)).devAccounts,
 };

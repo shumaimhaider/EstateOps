@@ -56,3 +56,29 @@ export const toBookingResponse = ({ booking: b, allowedActions }) => ({
   updated_at: toIso(b.updatedAt),
   created_by: b.createdBy,
 });
+
+/**
+ * A booking as the customer sees it: their property and where the money stands. Staff-only facts
+ * (who created it, internal ids of the buyer record, allowed actions) are left out on purpose.
+ */
+export const toPortalPropertyResponse = (b) => ({
+  id: b.id,
+  unit_no: b.unitNo,
+  unit_kind: b.unitKind,
+  project_name: b.projectName,
+  status: b.status,
+  plan_name: b.planName,
+  total_price: b.totalPrice,
+  currency: b.currency,
+  installments_total: b.installmentsTotal,
+  installments_paid: b.installmentsPaid,
+  installments_due: b.installmentsDue,
+  installments_overdue: b.installmentsOverdue,
+  installments_upcoming: b.installmentsUpcoming,
+  received_amount: b.receivedAmount,
+  pending_amount: b.pendingAmount,
+  overdue_amount: b.overdueAmount,
+  fine_amount: b.fineAmount,
+  next_due_date: b.nextDueDate,
+  booked_at: b.bookedAt,
+});

@@ -11,6 +11,7 @@ import { useContractsController } from '../hooks/useContractsController.js';
 import { useContractsQuery } from '../hooks/useContractsQuery.js';
 import ContractCard from './ContractCard.jsx';
 import CreateContractDialog from './CreateContractDialog.jsx';
+import SigningDialog from './SigningDialog.jsx';
 import ReviseContractDialog from './ReviseContractDialog.jsx';
 import UploadContractDialog from './UploadContractDialog.jsx';
 
@@ -62,11 +63,19 @@ export default function ContractsPanel({ bookingId, canManage = false }) {
               contract={contract}
               busy={c.busy}
               onAction={c.onAction}
-              onSimulate={c.onSimulate}
+              onSignNow={c.onSignNow}
             />
           ))}
         </ul>
       )}
+      <SigningDialog
+        contract={c.signing.contract}
+        session={c.signing.session}
+        loading={c.signing.loading}
+        error={c.signing.error}
+        onEvent={c.signing.onEvent}
+        onClose={c.signing.close}
+      />
       <UploadContractDialog
         open={c.dialog?.type === 'upload'}
         onClose={c.close}

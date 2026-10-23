@@ -118,6 +118,15 @@ describe.skipIf(!available)('contract on PostgreSQL', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
+  describe('what is handed back after a write', () => {
+    it('an inserted contract comes back as stored, with the database-made timestamps the API shows', async () => {
+      const b = await mkBooking();
+      const saved = await run((r) => r.contracts.insert(draftOf(b)));
+      expect(saved.createdAt).toBeInstanceOf(Date);
+      expect(saved.updatedAt).toBeInstanceOf(Date);
+    });
+  });
+
   describe('constraints the database enforces', () => {
     it('allows one open PandaDoc contract and one signed contract per booking, even when asked directly', async () => {
       const b = await mkBooking();

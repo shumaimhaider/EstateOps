@@ -33,12 +33,6 @@ export function sessionFromApi(dto) {
 
 export const tokensFromApi = (dto) => ({ access: dto.access_token, refresh: dto.refresh_token });
 export const challengeFromApi = (dto) => ({ mfaToken: dto.mfa_token });
-export const devAccountFromApi = (dto) => ({
-  email: dto.email,
-  name: dto.name,
-  role: dto.role,
-  tenantName: dto.tenant_name,
-});
 
 export const loginToApi = ({ email, password }) => ({ email, password });
 export const verifyToApi = ({ mfaToken, code }) => ({ mfa_token: mfaToken, code });

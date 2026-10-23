@@ -38,7 +38,8 @@ export class UserRepositoryTypeorm {
         throw new ConflictError('EMAIL_TAKEN', 'That email already has an account');
       throw error;
     }
-    return user;
+    // the database fills created_at: hand back the row as stored
+    return (await this.findById(user.tenantId, user.id)) ?? user;
   }
 
   /** Sign-in is by email alone, so lookup is across tenants (the email is globally unique). */

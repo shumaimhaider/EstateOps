@@ -100,7 +100,7 @@ describe('contract API', () => {
     expect((await post(`/contracts/${c.id}/send`, {})).body).toMatchObject({
       status: 'sent',
       sent_at: expect.any(String),
-      allowed_actions: ['revise', 'void'],
+      allowed_actions: ['revise', 'void', 'sign_on_screen'],
     });
     expect((await post(`/mock/contracts/${c.id}/events/viewed`, {})).body.status).toBe('viewed');
     const signed = await post(`/mock/contracts/${c.id}/events/signed`, {});
@@ -190,7 +190,7 @@ describe('contract API', () => {
     });
   });
 
-  it('downloads an uploaded PDF as an attachment, but nothing for a PandaDoc draft', async () => {
+  it('downloads an uploaded PDF as an attachment, but nothing for an unsigned PandaDoc draft', async () => {
     const up = await uploadPdf();
     const file = await get(
       `/contracts/${up.body.id}/file`,
@@ -204,7 +204,7 @@ describe('contract API', () => {
     const d = await buildContractTest().then(
       async (x) => ((t = x), (sales = await x.auth.bearer({ role: 'sales_manager' })), draft()),
     );
-    expect((await get(`/contracts/${d.id}/file`)).body.code).toBe('NO_FILE');
+    expect((await get(`/contracts/${d.id}/file`)).body.code).toBe('NOT_SIGNED');
     expect((await get(`/contracts/${uuid(404)}/file`)).status).toBe(404);
   });
 

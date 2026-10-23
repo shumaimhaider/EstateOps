@@ -24,6 +24,14 @@ const FIELD_TO_WIRE = {
 };
 const WIRE_TO_FIELD = Object.fromEntries(Object.entries(FIELD_TO_WIRE).map(([k, v]) => [v, k]));
 
+export const mediaFromApi = (m) => ({
+  id: m.id,
+  kind: m.kind,
+  url: m.url,
+  caption: m.caption,
+  fileName: m.file_name ?? null,
+});
+
 /** @param {import('./unit.dto.js').UnitDto} dto @returns {Unit} */
 export function fromApi(dto) {
   return {
@@ -50,7 +58,7 @@ export function fromApi(dto) {
     geometry: dto.geometry,
     allowedActions: dto.allowed_actions,
     bookingId: dto.booking_id,
-    media: dto.media ?? [],
+    media: (dto.media ?? []).map(mediaFromApi),
     statusHistory: (dto.status_history ?? []).map((h) => ({
       status: h.status,
       changedBy: h.changed_by,

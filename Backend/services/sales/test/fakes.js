@@ -65,6 +65,11 @@ export function makeSalesRepos() {
         },
         findById: async (t, id) =>
           s.bookings.get(id)?.tenantId === t ? clone(s.bookings.get(id)) : null,
+        listStuck: async (cutoff, limit = 50) =>
+          [...s.bookings.values()]
+            .filter((x) => ['requested', 'confirmed'].includes(x.status) && x.updatedAt < cutoff)
+            .slice(0, limit)
+            .map((x) => ({ id: x.id, tenantId: x.tenantId })),
         hasLiveBookingForUnit: async (unitId) =>
           [...s.bookings.values()].some(
             (x) => x.unitId === unitId && LIVE_STATUSES.includes(x.status),

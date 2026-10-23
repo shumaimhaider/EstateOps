@@ -3,10 +3,10 @@ import express from 'express';
 import { UnauthenticatedError } from '@estateops/kernel';
 import { errorMiddleware } from '@estateops/platform';
 import { forward } from '../routing/proxy.js';
-import { isPublic, resolveService } from '../routing/routes.js';
+import { WEBHOOKS, isPublic, resolveService } from '../routing/routes.js';
 import { cors } from '../security/cors.js';
 import { securityHeaders } from '../security/headers.js';
-import { createRateLimiter, rateLimit } from '../security/rateLimit.js';
+import { createRateLimiter, createSharedRateLimiter, rateLimit } from '../security/rateLimit.js';
 
 const probe = async (url, timeoutMs) => {
   try {
@@ -32,12 +32,20 @@ export function composeGateway({
   upstreamTimeoutMs = 30_000,
   hsts = false,
   now,
+  cache = null,
 }) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', true);
-  const userLimiter = createRateLimiter({ max: perUserPerMinute, now });
-  const addressLimiter = createRateLimiter({ max: perAddressPerMinute, now });
+  // with a cache the counts are shared by every replica; without one each replica counts alone
+  const limiterFor = (scope, max) => {
+    const local = createRateLimiter({ max, now });
+    return cache ? createSharedRateLimiter({ cache, scope, max, fallback: local }) : local;
+  };
+  const userLimiter = limiterFor('user', perUserPerMinute);
+  const addressLimiter = limiterFor('address', perAddressPerMinute);
+  // a provider sends bursts from a few addresses, so webhooks get their own, wider limit
+  const webhookLimiter = limiterFor('webhook', perAddressPerMinute * 20);
 
   app.use((req, res, next) => {
     req.id = req.get('x-request-id') ?? randomUUID();
@@ -57,6 +65,17 @@ export function composeGateway({
     const services = Object.fromEntries(entries);
     res.status(entries.every(([, s]) => s === 'up') ? 200 : 503).json({ gateway: 'up', services });
   });
+
+  // provider webhooks: streamed untouched (the signature covers the exact bytes), limited by address
+  app.use(
+    '/webhooks',
+    rateLimit(webhookLimiter, (r) => r.ip),
+    (req, res, next) => {
+      const target = upstreams[WEBHOOKS[req.originalUrl.split('?')[0]]];
+      if (!target || req.method !== 'POST') return next();
+      return forward(req, res, { target, timeoutMs: upstreamTimeoutMs, logger });
+    },
+  );
 
   // unauthenticated calls (sign-in) are limited by address; everything else by person
   app.use('/api', (req, res, next) =>

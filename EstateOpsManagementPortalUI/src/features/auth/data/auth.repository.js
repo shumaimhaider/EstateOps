@@ -1,9 +1,7 @@
-import { z } from 'zod';
 import { ApiError } from '@/shared/api/ApiError.js';
 import { configureAuthLink, tokenStore } from '@/shared/api/authLink.js';
 import { parseDto } from '@/shared/api/contract.js';
 import {
-  devAccountDtoSchema,
   logoutDtoSchema,
   mfaChallengeDtoSchema,
   sessionDtoSchema,
@@ -12,7 +10,6 @@ import {
 } from '@/shared/api/dtos/auth.dto.js';
 import {
   challengeFromApi,
-  devAccountFromApi,
   fieldErrorsFromApi,
   googleToApi,
   loginToApi,
@@ -48,13 +45,21 @@ export function createAuthRepository({
     return session;
   }
 
+  // A refresh token works once: callers asking at the same moment (a reload starts several
+  // requests, React may run an effect twice) share one refresh instead of racing for the token.
+  let refreshing = null;
   async function refreshTokens() {
     const refresh = tokenStore.getRefresh();
     if (!refresh) return null;
-    const raw = await t().refresh(refreshToApi(refresh));
-    const tokens = tokensFromApi(parseDto(tokensDtoSchema, raw, 'tokens'));
-    tokenStore.set(tokens.access, tokens.refresh);
-    return tokens;
+    refreshing ??= (async () => {
+      const raw = await t().refresh(refreshToApi(refresh));
+      const tokens = tokensFromApi(parseDto(tokensDtoSchema, raw, 'tokens'));
+      tokenStore.set(tokens.access, tokens.refresh);
+      return tokens;
+    })().finally(() => {
+      refreshing = null;
+    });
+    return refreshing;
   }
 
   return {
@@ -84,14 +89,14 @@ export function createAuthRepository({
     },
     async logout() {
       try {
-        parseDto(logoutDtoSchema, await t().logout(), 'logout');
+        parseDto(
+          logoutDtoSchema,
+          await t().logout({ refresh_token: tokenStore.getRefresh() ?? undefined }),
+          'logout',
+        );
       } finally {
         tokenStore.clear();
       }
-    },
-    async devAccounts() {
-      const raw = await t().devAccounts();
-      return parseDto(z.array(devAccountDtoSchema), raw, 'dev accounts').map(devAccountFromApi);
     },
     /** Registers refresh-on-401 and the sign-out-on-failure callback with the shared auth link. */
     attachAuthLink({ onFailure }) {

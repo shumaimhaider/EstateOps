@@ -15,12 +15,17 @@ export const EVENT = Object.freeze({
   UNIT_BOOKING_REJECTED: 'unit.booking_rejected',
   BOOKING_CONFIRMED: 'booking.confirmed',
   SCHEDULE_CREATED: 'schedule.created',
+  SCHEDULE_FAILED: 'schedule.failed',
   BOOKING_SUMMARY_CHANGED: 'booking.summary_changed',
   BOOKING_FULLY_PAID: 'booking.fully_paid',
   BOOKING_COMPLETED: 'booking.completed',
   BOOKING_CANCELLED: 'booking.cancelled',
   PAYMENT_RECORDED: 'payment.recorded',
   FINE_RATE_CHANGED: 'fine_rate.changed',
+  PAYMENT_COLLECTION_REQUESTED: 'payment.collection_requested',
+  PAYMENT_CHARGE_SUCCEEDED: 'payment.charge_succeeded',
+  PAYMENT_CHARGE_FAILED: 'payment.charge_failed',
+  PAYMENT_REFUNDED: 'payment.refunded',
   CONTRACT_STATUS_CHANGED: 'contract.status_changed',
 });
 
@@ -42,6 +47,18 @@ const customerSnapshot = z.object({
   full_name: z.string(),
   phone: z.string().nullable(),
   email: z.string().nullable(),
+});
+
+const chargeOutcome = z.object({
+  transaction_id: id,
+  invoice_id: id,
+  booking_id: id,
+  customer_id: id,
+  amount: minor,
+  currency: z.string().length(3),
+  card_brand: z.string().nullable(),
+  card_last4: z.string().nullable(),
+  trigger: z.string(),
 });
 
 export const EVENT_SCHEMAS = Object.freeze({
@@ -86,6 +103,8 @@ export const EVENT_SCHEMAS = Object.freeze({
     booked_at: date,
   }),
   [EVENT.SCHEDULE_CREATED]: z.object({ booking_id: id, invoices: z.number().int().min(1) }),
+  // compensation: billing could not build the schedule, so sales must undo the booking
+  [EVENT.SCHEDULE_FAILED]: z.object({ booking_id: id, reason: z.string() }),
   [EVENT.BOOKING_SUMMARY_CHANGED]: z.object({
     booking_id: id,
     customer_id: id,
@@ -115,6 +134,25 @@ export const EVENT_SCHEMAS = Object.freeze({
     amount: minor,
     source: z.enum(['manual', 'stripe']),
   }),
+  // The daily collection job asks the payment worker to charge one invoice to the customer's saved card.
+  // `attempt_key` is the same for repeats of the same attempt, so a replay never charges twice.
+  [EVENT.PAYMENT_COLLECTION_REQUESTED]: z.object({
+    invoice_id: id,
+    booking_id: id,
+    customer_id: id,
+    attempt_key: z.string().min(1),
+    attempt_no: z.number().int().min(1),
+    reason: z.enum(['due', 'retry']),
+  }),
+  // What happened to a card charge, for the customer's email and any other listener.
+  [EVENT.PAYMENT_CHARGE_SUCCEEDED]: chargeOutcome,
+  [EVENT.PAYMENT_CHARGE_FAILED]: chargeOutcome.extend({
+    failure_code: z.string(),
+    failure_message: z.string(),
+    will_retry: z.boolean(),
+    retry_on: date.nullable(),
+  }),
+  [EVENT.PAYMENT_REFUNDED]: chargeOutcome.extend({ reason: z.string() }),
   [EVENT.FINE_RATE_CHANGED]: z.object({
     scope: z.enum(['default', 'project', 'unit', 'customer']),
     scope_id: id.nullable(),
